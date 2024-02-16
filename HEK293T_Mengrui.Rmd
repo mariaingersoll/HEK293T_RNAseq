@@ -22,6 +22,7 @@ install.packages("ggpubr")
 install.packages("reshape2")
 install.packages("tidyselect")
 install.packages("dplyr")
+install.packages("devtools")
 
 library(DESeq2)
 library(arrayQualityMetrics)
@@ -36,6 +37,7 @@ library(ggpubr)
 library(reshape2)
 library(tidyselect)
 library(dplyr)
+library(devtools)
 ```
 
 Set your working directory (the entire path to the folder that contains this rmarkdown and your data files)
@@ -403,6 +405,18 @@ pca_plot <- ggplot(pca_s, aes(PC1, PC2, color = treat, group=treat)) +
         legend.key.size=unit(10,"point"))
 pca_plot # saved as portrait with 4x3 as pca_021624.pdf in Figures
 
+install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+library(pairwiseAdonis)
+
+# Effect of Nutrition
+adonis2(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
+# Pr(>F) = 0.009
+
+# Pairwise effect of treatment (to get individual pairwise comparisons)
+pairwise.adonis2(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
+# Flag_vs_N Pr(>F)=0.1
+# Flag_vs_NLS Pr(>F)=0.1
+# N_vs_NLS Pr(>F)=0.5
 ```
 
 
