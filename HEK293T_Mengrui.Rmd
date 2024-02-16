@@ -1,0 +1,172 @@
+---
+title: "HEK293T_Mengrui"
+author: "MVI"
+date: "2024-02-02"
+output: html_document
+---
+
+Load in packages
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("DESeq2")
+BiocManager::install("arrayQualityMetrics")
+install.packages("gplots")
+install.packages("pheatmap")
+install.packages("vegan")
+install.packages("ggplot2")
+install.packages("ggrepel")
+install.packages("VennDiagram")
+install.packages("ggtext")
+install.packages("ggpubr")
+install.packages("reshape2")
+install.packages("tidyselect")
+install.packages("dplyr")
+
+library(DESeq2)
+library(arrayQualityMetrics)
+library(gplots)
+library(pheatmap)
+library(vegan)
+library(ggplot2)
+library(ggrepel)
+library(VennDiagram)
+library(ggtext)
+library(ggpubr)
+library(reshape2)
+library(tidyselect)
+library(dplyr)
+```
+
+Set your working directory (the entire path to the folder that contains this rmarkdown and your data files)
+```{r}
+knitr::opts_knit$set(root.dir = "/Users/mariaingersoll/Desktop/BU_Research/Davies-Gilmore/Mengrui_HEK293T")
+#using the knitr option, it ensures that all chunks run in this rmd are performed in this working directory
+
+#check your working directory:
+getwd()
+```
+
+Open and inspect counts data (preprocessed using "tagseq_processing_HOWTO" on BU SCC)
+```{r}
+#load the count file into R and name it "countData"
+countData = read.table("./Mengrui_HEK293T_2024_counts.txt")
+
+#how long is the file (in other words, how many genes do you have count data for)?
+length(countData[,1])
+#59048
+
+#look at the first few rows of the your file
+head(countData)
+
+#rename each of your samples (each column) with shorter names
+newColNames = c("flag1_S33", "flag2_S34", "flag3_S35", "N1_S36", "N2_S37", "N3_S38", "NLS1_S39", "NLS2_S40", "NLS3_S41")
+colnames(countData)=paste(newColNames)
+length(countData[,1])
+#59048
+head(countData)
+
+#look at the distribution of your count data throughout your samples
+totalCounts=colSums(countData)
+barplot(totalCounts, col=c("mediumblue", "mediumblue", "mediumblue", "red", "red", "red", "darkgreen", "darkgreen", "darkgreen"), ylab="Raw Counts", xlab="HEK293T")
+
+
+min(totalCounts)
+#480525     
+max(totalCounts)
+#862648 
+```
+
+Need to make a metadata file with information about each sample and its respective condition
+```{r}
+sample=c("flag1_S33", "flag2_S34", "flag3_S35", "N1_S36", "N2_S37", "N3_S38", "NLS1_S39", "NLS2_S40", "NLS3_S41")
+s=data.frame(sample)
+sampledata <-s
+sampledata
+
+treat=c("Flag", "Flag", "Flag", "N", "N", "N", "NLS", "NLS", "NLS")
+g=data.frame(treat)
+colData<- g
+colData
+
+allData = cbind(sampledata, colData)
+allData
+```
+
+Run preliminary DESeq (differential expression testing) and outlier analysis (using arrayqualitymetrics)
+```{r}
+dds<-DESeqDataSetFromMatrix(countData=countData, colData=colData, design=~treat)
+dds<-DESeq(dds)
+
+vsd.ge=assay(vst(dds))
+rl=vst(dds)
+e=ExpressionSet(assay(rl), AnnotatedDataFrame(as.data.frame(colData(rl))))
+v = setwd("~/Desktop/BU_Research/Davies-Gilmore/Mengrui_HEK293T")
+arrayQualityMetrics(e,outdir=v,intgroup=c("treat"),force=T)
+```
+Open the index.html file that is printed into the output directory
+--> no outliers
+
+Visualize the results
+`results` extracts the results table from the DESeq analysis and the DESeqDataSet is used to generate the dispersion plot.
+  --> Have to compare each of your "treatments" to the control
+  --> And then the "treatments" to each other too
+  
+```{r}
+#N to Flag
+head(dds)
+res_N_Flag<- results(dds, contrast = c("treat", "N", "Flag"))
+res_N_Flag
+
+#NLS to Flag
+res_NLS_Flag<- results(dds, contrast = c("treat", "NLS", "Flag"))
+res_NLS_Flag
+
+#N to NLS
+res_N_NLS<- results(dds, contrast = c("treat", "N", "NLS"))
+res_N_NLS
+```
+
+The above code gives the log2 fold change (MLE) of a treatment against a baseline
+For example, in res_N_Flag, a pos log2FC values indicates that a gene is upregulated in N compared to Flag
+-->The name provided in the second element of the results() command is the baseline
+
+
+Dispersion plot
+Read more about dispersion here: https://hbctraining.github.io/DGE_workshop/lessons/04_DGE_DESeq2_analysis.html
+
+Basically, as the mean of normalized counts for a given gene increases, the dispersion (variance) should decrease
+```{r}
+plotDispEsts(dds, main="Dispersion Uptake")
+```
+
+- Now we are going to retrieve the rlog data, which will give us better transformation when size factors vary across samples
+- regularized log transformation, transforms COUNT DATA to log2 scale to minimize differences between samples for rows with small counts
+```{r}
+rld <- rlogTransformation(dds, blind=TRUE)
+head(assay(rld))
+hist(assay(rld))
+```
+
+- The assay function allows you to access the matrix-like data, so that you can view it bc head(rld) gives you just a summary
+- The histogram above displays the frequency of each binned rld count value
+
+Raw Sample Comparison
+
+- Making a sample distance heatmap
+- as.matrix attempts to turn its argument into a matrix
+- dist computes and returns the distance matrix computed using the specified distance measure to compute distances between the rows of a data matrix (assay(rld))
+- Create a sample heatmap of the relatedness based on the count distance/difference between samples
+```{r}
+sampleDists <- as.matrix(dist(t(assay(rld))))
+
+heatmap.2(as.matrix(sampleDists), key=F, trace="none",
+          col=colorpanel(100, "black", "white"), ColSideColors=c("mediumblue",  "mediumblue", "mediumblue", "red", "red", "red", "darkgreen", "darkgreen", "darkgreen"),RowSideColors = c("mediumblue", "mediumblue", "mediumblue", "red", "red", "red", "darkgreen", "darkgreen", "darkgreen"),
+          margin=c(10, 10))
+
+#saved as sampledisthm.pdf as landscape with 5x5 dimensions
+
+#all the flags are grouping together and then the Ns and the NLS are grouping together
+```
+
+
