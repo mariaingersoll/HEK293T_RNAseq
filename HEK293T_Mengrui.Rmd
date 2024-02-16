@@ -401,7 +401,7 @@ pca_plot <- ggplot(pca_s, aes(PC1, PC2, color = treat, group=treat)) +
         legend.title= element_blank(),
         legend.text.align = 0,
         legend.key.size=unit(10,"point"))
-pca_plot # saved as portrait with 4x3 as pca_012223.pdf in Figures
+pca_plot # saved as portrait with 4x3 as pca_021624.pdf in Figures
 
 ```
 
