@@ -419,4 +419,118 @@ pairwise.adonis2(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
 # N_vs_NLS Pr(>F)=0.5
 ```
 
+Not going to run plasticity measurements
+
+Skipping to Venn Diagram analysis (line 999 of Aiptasia rmarkdown)
+```{r}
+res_N_Flag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
+head(res_N_Flag)
+res_N_Flag$lfc_NFlag <- res_N_Flag$log2FoldChange
+head(res_N_Flag)
+
+res_NLS_Flag<- read.delim("./Data_Files/NLS_Flag_DE_24.txt")
+head(res_NLS_Flag)
+res_NLS_Flag$lfc_NLSFlag <- res_NLS_Flag$log2FoldChange
+head(res_NLS_Flag)
+
+# look at ALL DEGs
+N_DEGs10=row.names(res_N_Flag[res_N_Flag$padj<0.10 & !is.na(res_N_Flag$padj),])
+length(N_DEGs10)
+# 1800
+N_DEGs05=row.names(res_N_Flag[res_N_Flag$padj<0.05 & !is.na(res_N_Flag$padj),])
+length(N_DEGs05)
+# 1379
+
+NLS_DEGs10=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.10 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs10)
+# 2339
+NLS_DEGs05=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs05)
+# 1828
+
+### also identifying the up and down DEGS for N and NLS vs Flag with 0.10 and 0.05 padjs
+#N to Flag first
+head(res_N_Flag)
+head(rldpvals_NFlag)
+N_lfc=cbind(res_N_Flag$lfc_NFlag)
+N_rld_pvals_lfc <- cbind(rldpvals_NFlag, N_lfc)
+head(N_rld_pvals_lfc)
+
+N_Sup10=subset(N_rld_pvals_lfc, N_lfc>0 & padj.N_Flag<0.1 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
+head(N_Sup10)
+nrow(N_Sup10)
+#812
+N_Sdown10=subset(N_rld_pvals_lfc, N_lfc<0 & padj.N_Flag<0.1 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
+head(N_Sdown10)
+nrow(N_Sdown10)
+#988
+
+N_Sup05=subset(N_rld_pvals_lfc, N_lfc>0 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
+head(N_Sup05)
+nrow(N_Sup05)
+#626
+N_Sdown05=subset(N_rld_pvals_lfc, N_lfc<0 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
+head(N_Sdown05)
+nrow(N_Sdown05)
+#753
+
+
+#Now NLS to Flag
+head(res_NLS_Flag)
+head(rldpvals_NLSFlag)
+NLS_lfc=cbind(res_NLS_Flag$lfc_NLSFlag)
+NLS_rld_pvals_lfc <- cbind(rldpvals_NLSFlag, NLS_lfc)
+head(NLS_rld_pvals_lfc)
+
+NLS_Sup10=subset(NLS_rld_pvals_lfc, NLS_lfc>0 & padj.NLS_Flag<0.1 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
+head(NLS_Sup10)
+nrow(NLS_Sup10)
+#971
+NLS_Sdown10=subset(NLS_rld_pvals_lfc, NLS_lfc<0 & padj.NLS_Flag<0.1 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
+head(NLS_Sdown10)
+nrow(NLS_Sdown10)
+#1368
+
+NLS_Sup05=subset(NLS_rld_pvals_lfc, NLS_lfc>0 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
+head(NLS_Sup05)
+nrow(NLS_Sup05)
+#743
+NLS_Sdown05=subset(NLS_rld_pvals_lfc, NLS_lfc<0 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
+head(NLS_Sdown05)
+nrow(NLS_Sdown05)
+#1085
+
+
+#Now make the Venn with the DEGs from the 0.05 cutoff
+candidates_all05=list("N"=N_DEGs05, "NLS"=NLS_DEGs05)
+#head(candidates_all)
+prettyvenn05=venn.diagram(
+  x = candidates_all05,
+  category.names=c("N (1379)", "NLS (1828)"),
+  col=c("red","darkgreen"),
+  lwd=c(3,3),
+  filename=NULL,
+  #main = "DEGs in Comparison to Flag",
+  main.cex = 1.5,
+  main.fontface = "bold",
+  main.fontfamily = "sans",
+  #col = "transparent",
+  fill = c("red","darkgreen"),
+  alpha = 0.3,
+  cex = 1.5,
+  fontfamily = "sans",
+  fontface = "bold",
+  cat.default.pos = "text",
+  cat.col = c("black", "black"),
+  cat.cex = 1.25,
+  cat.fontfamily = "sans",
+  cat.dist = c(0.2, 0.2),
+  cat.pos = c(-14.5, -4.5)
+)
+
+grid.draw(prettyvenn05)
+#saved as venn05_021924.pdf as landscape with 6x6 dimensions in Figures
+```
+
+
 
