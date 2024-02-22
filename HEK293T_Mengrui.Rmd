@@ -532,5 +532,70 @@ grid.draw(prettyvenn05)
 #saved as venn05_021924.pdf as landscape with 6x6 dimensions in Figures
 ```
 
+Create a term go_input_NFlag, a term go_input_NLSFlag, and a term go_input_NNLS that has the -logpval as a neg number if the l2fc is < 0 and a pos number if the l2fc is > 0
+- These terms will go into the go analysis
+- These terms are including na.omit so anything without a padj value will be removed
 
+```{r}
+##N to Flag
+head(res_N_Flag)
+res_N_Flag = res_N_Flag %>%
+  tibble::rownames_to_column(var = "gene_ID")
+head(res_N_Flag)
+nrow(res_N_Flag)
+#59048
 
+go_input_NFlag = res_N_Flag %>%
+  mutate(mutated_p = -log(pvalue)) %>%
+  mutate(mutated_p_updown = ifelse(log2FoldChange < 0, mutated_p*-1, mutated_p*1)) %>%
+  na.omit() %>%
+  select(gene_ID, mutated_p_updown)
+nrow(go_input_NFlag)
+#10966
+head(go_input_NFlag)
+colnames(go_input_NFlag) <- c("gene", "pval")
+head(go_input_NFlag)
+write.csv(go_input_NFlag, file="./Data_Files/apo_NFlag_24.csv", quote=F, row.names=FALSE)
+
+##NLS to Flag
+head(res_NLS_Flag)
+res_NLS_Flag = res_NLS_Flag %>%
+  tibble::rownames_to_column(var = "gene_ID")
+head(res_NLS_Flag)
+nrow(res_NLS_Flag)
+#59048
+
+go_input_NLSFlag = res_NLS_Flag %>%
+  mutate(mutated_p = -log(pvalue)) %>%
+  mutate(mutated_p_updown = ifelse(log2FoldChange < 0, mutated_p*-1, mutated_p*1)) %>%
+  na.omit() %>%
+  select(gene_ID, mutated_p_updown)
+nrow(go_input_NLSFlag)
+#9822
+head(go_input_NLSFlag)
+colnames(go_input_NLSFlag) <- c("gene", "pval")
+head(go_input_NLSFlag)
+write.csv(go_input_NLSFlag, file="./Data_Files/apo_NLSFlag_24.csv", quote=F, row.names=FALSE)
+
+##N to NLS
+head(res_N_NLS)
+res_N_NLS = res_N_NLS %>%
+  tibble::rownames_to_column(var = "gene_ID")
+head(res_N_NLS)
+nrow(res_N_NLS)
+#59048
+
+go_input_NNLS = res_N_NLS %>%
+  mutate(mutated_p = -log(pvalue)) %>%
+  mutate(mutated_p_updown = ifelse(log2FoldChange < 0, mutated_p*-1, mutated_p*1)) %>%
+  na.omit() %>%
+  select(gene_ID, mutated_p_updown)
+nrow(go_input_NNLS)
+#59048
+head(go_input_NNLS)
+colnames(go_input_NNLS) <- c("gene", "pval")
+head(go_input_NNLS)
+write.csv(go_input_NNLS, file="./Data_Files/apo_NNLS_24.csv", quote=F, row.names=FALSE)
+```
+
+Making the emapper annotation files from the GRCh38 RefSeq proteins
