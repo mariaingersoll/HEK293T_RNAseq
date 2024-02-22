@@ -555,7 +555,7 @@ nrow(go_input_NFlag)
 head(go_input_NFlag)
 colnames(go_input_NFlag) <- c("gene", "pval")
 head(go_input_NFlag)
-write.csv(go_input_NFlag, file="./Data_Files/apo_NFlag_24.csv", quote=F, row.names=FALSE)
+write.csv(go_input_NFlag, file="./Data_Files/NFlag_GO_24.csv", quote=F, row.names=FALSE)
 
 ##NLS to Flag
 head(res_NLS_Flag)
@@ -575,7 +575,7 @@ nrow(go_input_NLSFlag)
 head(go_input_NLSFlag)
 colnames(go_input_NLSFlag) <- c("gene", "pval")
 head(go_input_NLSFlag)
-write.csv(go_input_NLSFlag, file="./Data_Files/apo_NLSFlag_24.csv", quote=F, row.names=FALSE)
+write.csv(go_input_NLSFlag, file="./Data_Files/NLSFlag_GO_24.csv", quote=F, row.names=FALSE)
 
 ##N to NLS
 head(res_N_NLS)
@@ -595,7 +595,7 @@ nrow(go_input_NNLS)
 head(go_input_NNLS)
 colnames(go_input_NNLS) <- c("gene", "pval")
 head(go_input_NNLS)
-write.csv(go_input_NNLS, file="./Data_Files/apo_NNLS_24.csv", quote=F, row.names=FALSE)
+write.csv(go_input_NNLS, file="./Data_Files/NNLS_GO_24.csv", quote=F, row.names=FALSE)
 ```
 
 Making the emapper annotation files from the GRCh38 RefSeq proteins
