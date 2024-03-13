@@ -15,7 +15,7 @@ gomwuStats(input, goDatabase, goAnnotations, goDivision,
            largest=0.1,
            smallest=5,
            clusterCutHeight=0.25)
-#117
+#
 resultsBP=gomwuPlot(input,goAnnotations,goDivision,
                     absValue=1,
                     level1=0.1,
@@ -39,7 +39,7 @@ gomwuStats(input, goDatabase, goAnnotations, goDivision,
            largest=0.1,
            smallest=5,
            clusterCutHeight=0.25)
-#117
+#
 resultsBP=gomwuPlot(input,goAnnotations,goDivision,
                     absValue=1,
                     level1=0.1,
