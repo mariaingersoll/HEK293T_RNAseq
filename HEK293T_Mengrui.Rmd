@@ -181,6 +181,9 @@ head(res_N_NLS)
 
 table(res_N_Flag$padj<0.05)
 # FALSE=9587 TRUE=1379
+table(res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>1.5)
+#FALSE  TRUE 
+#48821   506 
 summary(res_N_Flag, alpha=0.05)
 # out of 59048 with nonzero total read count
 #adjusted p-value < 0.05
@@ -192,6 +195,9 @@ summary(res_N_Flag, alpha=0.05)
 
 table(res_NLS_Flag$padj<0.05)
 # FALSE=7994 TRUE=1828 
+table(res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>1.5)
+#FALSE  TRUE 
+#49018   550 
 summary(res_NLS_Flag, alpha=0.05)
 #out of 59048 with nonzero total read count
 #adjusted p-value < 0.05
@@ -203,6 +209,9 @@ summary(res_NLS_Flag, alpha=0.05)
 
 table(res_N_NLS$padj<0.05)
 # FALSE=59047 TRUE=1
+table(res_N_NLS$padj<0.05 & abs(res_N_NLS$log2FoldChange)>1.5)
+#FALSE 
+#59048 
 summary(res_N_NLS, alpha=0.05)
 #out of 59048 with nonzero total read count
 #adjusted p-value < 0.05
@@ -354,10 +363,18 @@ head(rldpvals_NFlag)
 rld_NFlag <- rldpvals_NFlag[,1:6]
 head(rld_NFlag)
 
+rld_pvals_NFlag_name <- rldpvals_NFlag %>%
+  tibble::rownames_to_column(var = "ISO") %>%
+  left_join(iso2gene_good)
+
 rldpvals_NLSFlag <- read.csv(file="./Data_Files/mingers_NLSFlag_RLDandPVALS_24.csv", row.names=1)
 head(rldpvals_NLSFlag)
 rld_NLSFlag <- rldpvals_NLSFlag[,1:6]
 head(rld_NLSFlag)
+
+rld_pvals_NLSFlag_name <- rldpvals_NLSFlag %>%
+  tibble::rownames_to_column(var = "ISO") %>%
+  left_join(iso2gene_good)
 ```
 
 Now going to perform PCA on the data to visualize overall effect of experimental covariates and batch effects
@@ -434,15 +451,25 @@ Not going to run plasticity measurements
 
 Skipping to Venn Diagram analysis (line 999 of Aiptasia rmarkdown)
 ```{r}
+#N to Flag
 res_N_Flag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
 head(res_N_Flag)
 res_N_Flag$lfc_NFlag <- res_N_Flag$log2FoldChange
 head(res_N_Flag)
 
+#NLS to Flag
 res_NLS_Flag<- read.delim("./Data_Files/NLS_Flag_DE_24.txt")
 head(res_NLS_Flag)
 res_NLS_Flag$lfc_NLSFlag <- res_NLS_Flag$log2FoldChange
 head(res_NLS_Flag)
+
+#even though I'm not using this, let's also read in N to NLS
+
+res_N_NLS<- read.delim("./Data_Files/N_NLS_DE_24.txt")
+head(res_N_NLS)
+res_N_NLS$lfc_NNLS <- res_N_NLS$log2FoldChange
+head(res_N_NLS)
+
 
 # look at ALL DEGs
 N_DEGs10=row.names(res_N_Flag[res_N_Flag$padj<0.10 & !is.na(res_N_Flag$padj),])
@@ -451,6 +478,14 @@ length(N_DEGs10)
 N_DEGs05=row.names(res_N_Flag[res_N_Flag$padj<0.05 & !is.na(res_N_Flag$padj),])
 length(N_DEGs05)
 # 1379
+#with abs(lfc) of 1.5
+N_DEGs05_lfc1.5=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>1.5 & !is.na(res_N_Flag$padj),])
+length(N_DEGs05_lfc1.5)
+# 506
+#with abs(lfc) of 2
+N_DEGs05_lfc2=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>2 & !is.na(res_N_Flag$padj),])
+length(N_DEGs05_lfc2)
+#279
 
 NLS_DEGs10=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.10 & !is.na(res_NLS_Flag$padj),])
 length(NLS_DEGs10)
@@ -458,6 +493,14 @@ length(NLS_DEGs10)
 NLS_DEGs05=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & !is.na(res_NLS_Flag$padj),])
 length(NLS_DEGs05)
 # 1828
+#with abs(lfc) of 1.5
+NLS_DEGs05_lfc1.5=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>1.5 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs05_lfc1.5)
+# 550
+#with abs(lfc) of 2
+NLS_DEGs05_lfc2=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>2 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs05_lfc2)
+#296
 
 ### also identifying the up and down DEGS for N and NLS vs Flag with 0.10 and 0.05 padjs
 #N to Flag first
@@ -485,6 +528,16 @@ head(N_Sdown05)
 nrow(N_Sdown05)
 #753
 
+###up and down with lfc set to 1.5
+N_Sup05_1.5=subset(N_rld_pvals_lfc, N_lfc>1.5 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
+head(N_Sup05_1.5)
+nrow(N_Sup05_1.5)
+#451
+N_Sdown05_1.5=subset(N_rld_pvals_lfc, N_lfc< -1.5 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
+head(N_Sdown05_1.5)
+nrow(N_Sdown05_1.5)
+#55
+
 
 #Now NLS to Flag
 head(res_NLS_Flag)
@@ -511,6 +564,15 @@ head(NLS_Sdown05)
 nrow(NLS_Sdown05)
 #1085
 
+###up and down with lfc set to 1.5
+NLS_Sup05_1.5=subset(NLS_rld_pvals_lfc, NLS_lfc>1.5 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
+head(NLS_Sup05_1.5)
+nrow(NLS_Sup05_1.5)
+#492
+NLS_Sdown05_1.5=subset(NLS_rld_pvals_lfc, NLS_lfc< -1.5 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
+head(NLS_Sdown05_1.5)
+nrow(NLS_Sdown05_1.5)
+#58
 
 #Now make the Venn with the DEGs from the 0.05 cutoff
 candidates_all05=list("N"=N_DEGs05, "NLS"=NLS_DEGs05)
@@ -541,6 +603,66 @@ prettyvenn05=venn.diagram(
 
 grid.draw(prettyvenn05)
 #saved as venn05_021924.pdf as landscape with 6x6 dimensions in Figures
+
+#Make another Venn with the DEGs from the 0.05 padj cutoff + 1.5 lfc cutoff
+candidates_all05_1.5=list("N"=N_DEGs05_lfc1.5, "NLS"=NLS_DEGs05_lfc1.5)
+
+venn05_1.5=venn.diagram(
+  x = candidates_all05_1.5,
+  category.names=c("N (506)", "NLS (550)"),
+  col=c("#0066CC", "#CC99CC"),
+  lwd=c(3,3),
+  filename=NULL,
+  #main = "DEGs in Comparison to Flag",
+  main.cex = 1.5,
+  main.fontface = "bold",
+  main.fontfamily = "sans",
+  #col = "transparent",
+  fill = c("#0066CC", "#CC99CC"),
+  alpha = 0.3,
+  cex = 1.5,
+  fontfamily = "sans",
+  fontface = "bold",
+  cat.default.pos = "text",
+  cat.col = c("black", "black"),
+  cat.cex = 1.25,
+  cat.fontfamily = "sans",
+  cat.dist = c(0.2, 0.2),
+  cat.pos = c(-14.5, -4.5)
+)
+
+grid.draw(venn05_1.5)
+#saved as venn05_1.5_040624.pdf as landscape with 6x6 dimensions in Figures
+
+#Make a third Venn with the DEGs from the 0.05 padj cutoff + 2 lfc cutoff
+candidates_all05_2=list("N"=N_DEGs05_lfc2, "NLS"=NLS_DEGs05_lfc2)
+
+venn05_2=venn.diagram(
+  x = candidates_all05_2,
+  category.names=c("N (279)", "NLS (296)"),
+  col=c("#0066CC", "#CC99CC"),
+  lwd=c(3,3),
+  filename=NULL,
+  #main = "DEGs in Comparison to Flag",
+  main.cex = 1.5,
+  main.fontface = "bold",
+  main.fontfamily = "sans",
+  #col = "transparent",
+  fill = c("#0066CC", "#CC99CC"),
+  alpha = 0.3,
+  cex = 1.5,
+  fontfamily = "sans",
+  fontface = "bold",
+  cat.default.pos = "text",
+  cat.col = c("black", "black"),
+  cat.cex = 1.25,
+  cat.fontfamily = "sans",
+  cat.dist = c(0.2, 0.19),
+  cat.pos = c(-14.5, -2.5)
+)
+
+grid.draw(venn05_2)
+#saved as venn05_2_040624.pdf as landscape with 6x6 dimensions in Figures
 ```
 
 Create a term go_input_NFlag, a term go_input_NLSFlag, and a term go_input_NNLS that has the -logpval as a neg number if the l2fc is < 0 and a pos number if the l2fc is > 0
@@ -555,6 +677,13 @@ res_N_Flag = res_N_Flag %>%
 head(res_N_Flag)
 nrow(res_N_Flag)
 #59048
+
+
+res_N_Flag_name <- res_N_Flag 
+colnames(res_N_Flag_name)[1] = "ISO"
+res_N_Flag_name <- res_N_Flag_name%>%
+  left_join(iso2gene_good)
+
 
 go_input_NFlag = res_N_Flag %>%
   mutate(mutated_p = -log(pvalue)) %>%
@@ -576,6 +705,11 @@ head(res_NLS_Flag)
 nrow(res_NLS_Flag)
 #59048
 
+res_NLS_Flag_name <- res_NLS_Flag 
+colnames(res_NLS_Flag_name)[1] = "ISO"
+res_NLS_Flag_name <- res_NLS_Flag_name%>%
+  left_join(iso2gene_good)
+
 go_input_NLSFlag = res_NLS_Flag %>%
   mutate(mutated_p = -log(pvalue)) %>%
   mutate(mutated_p_updown = ifelse(log2FoldChange < 0, mutated_p*-1, mutated_p*1)) %>%
@@ -595,6 +729,11 @@ res_N_NLS = res_N_NLS %>%
 head(res_N_NLS)
 nrow(res_N_NLS)
 #59048
+
+res_N_NLS_name <- res_N_NLS 
+colnames(res_N_NLS_name)[1] = "ISO"
+res_N_NLS_name <- res_N_NLS_name%>%
+  left_join(iso2gene_good)
 
 go_input_NNLS = res_N_NLS %>%
   mutate(mutated_p = -log(pvalue)) %>%
@@ -733,6 +872,20 @@ head(rld_N_NLS)
 #read in iso2go
 iso2gene = read.table("./Data_Files/GRCh38_gene2iso.tab", sep="\t")
 head(iso2gene)
+#read in gtf to try to get a better iso2gene
+gtf <- read.table("./Data_Files/GRCh38_latest_genomic.gtf", sep="\t")
+head(gtf)
+iso2gene_good <- gtf[,c(1,9)]
+head(iso2gene_good)
+iso2gene_good = iso2gene_good %>%
+  mutate(NAME = gsub(".*gene_name ", "", V9)) %>%
+  mutate(NAME = gsub(";", "", NAME)) %>%
+  mutate(ISO = gsub(".*transcript_id rna-", "", V9)) %>%
+  mutate(ISO = gsub("; .*", "", ISO)) %>%
+  #mutate(ISO = gsub("transcript_.*", "", ISO))%>%
+  dplyr::select(NAME, ISO) %>%
+  distinct()
+head(iso2gene_good)
 
 colnames(iso2gene)=paste(c("DESCRIPTION","NAME"))
 
@@ -773,24 +926,24 @@ head(res_N_Flag)
 res_N_Flag_gsea <- res_N_Flag %>%
   dplyr::select(gene_ID, lfc_NFlag)
 head(res_N_Flag_gsea)
-colnames(res_N_Flag_gsea)=paste(c("DESCRIPTION","lfc_NFlag"))
+colnames(res_N_Flag_gsea)=paste(c("ISO","lfc_NFlag"))
 head(res_N_Flag_gsea)
 #res_N_Flag_gsea <- column_to_rownames(res_N_Flag_gsea, var="DESCRIPTION")
 res_N_Flag_gsea <- res_N_Flag_gsea %>%
-  left_join(iso2gene) %>%
-  dplyr::select(-DESCRIPTION)
+  left_join(iso2gene_good) %>%
+  dplyr::select(-ISO)
  # column_to_rownames(var="NAME")
 
 head(res_NLS_Flag)
 res_NLS_Flag_gsea <- res_NLS_Flag %>%
   dplyr::select(gene_ID, lfc_NLSFlag)
 head(res_NLS_Flag_gsea)
-colnames(res_NLS_Flag_gsea)=paste(c("DESCRIPTION","lfc_NLSFlag"))
+colnames(res_NLS_Flag_gsea)=paste(c("ISO","lfc_NLSFlag"))
 head(res_NLS_Flag_gsea)
 #res_NLS_Flag_gsea <- column_to_rownames(res_NLS_Flag_gsea, var="DESCRIPTION")
 res_NLS_Flag_gsea <- res_NLS_Flag_gsea %>%
-  left_join(iso2gene) %>%
-  dplyr::select(-DESCRIPTION)
+  left_join(iso2gene_good) %>%
+  dplyr::select(-ISO)
 
 # SET THE DESIRED ORGANISM HERE
 organism = "org.Hs.eg.db"
