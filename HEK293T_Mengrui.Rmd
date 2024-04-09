@@ -873,7 +873,63 @@ head(rld_N_NLS)
 iso2gene = read.table("./Data_Files/GRCh38_gene2iso.tab", sep="\t")
 head(iso2gene)
 #read in gtf to try to get a better iso2gene
-gtf <- read.table("./Data_Files/GRCh38_latest_genomic.gtf", sep="\t")
+```
+
+
+Get shared DEGS from Venns with 1.5 and 2 lfc filters
+```{r}
+resNFlag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
+head(resNFlag)
+resNFlag$lfc_NFlag <- resNFlag$log2FoldChange
+head(resNFlag)
+
+resNLSFlag<- read.delim("./Data_Files/NLS_Flag_DE_24.txt")
+head(resNLSFlag)
+resNLSFlag$lfc_NLSFlag <- resNLSFlag$log2FoldChange
+head(resNLSFlag)
+
+#1.5
+intersect05_1.5 <- intersect(N_DEGs05_lfc1.5, NLS_DEGs05_lfc1.5)
+shared_N_1.5 <- as.data.frame(resNFlag)[rownames(resNFlag) %in% intersect05_1.5, ] %>% select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_1.5) <- N_name
+shared_NLS_1.5 <- as.data.frame(resNLSFlag)[rownames(resNLSFlag) %in% intersect05_1.5, ] %>% select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_1.5) <- NLS_name
+
+shared_both_lfc_1.5 <- cbind(shared_N_1.5, shared_NLS_1.5)
+head(shared_both_lfc_1.5)
+scatter_1.5 <- ggscatter(shared_both_lfc_1.5, x = "N_lfc", y = "NLS_lfc", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "DEG LogFoldChange N to Flag", ylab = "DEG LogFoldChange NLS to Flag")+ theme(panel.grid.major = element_line(colour = "gray80", linewidth = 0.5, linetype="dotted")) 
+
+#2
+intersect05_2 <- intersect(N_DEGs05_lfc2, NLS_DEGs05_lfc2)
+shared_N_2 <- as.data.frame(resNFlag)[rownames(resNFlag) %in% intersect05_2, ] %>% select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_2) <- N_name
+shared_NLS_2 <- as.data.frame(resNLSFlag)[rownames(resNLSFlag) %in% intersect05_2, ] %>% select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_2) <- NLS_name
+
+shared_both_lfc_2 <- cbind(shared_N_2, shared_NLS_2)
+head(shared_both_lfc_2)
+scatter_2 <- ggscatter(shared_both_lfc_2, x = "N_lfc", y = "NLS_lfc", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "DEG LogFoldChange N to Flag", ylab = "DEG LogFoldChange NLS to Flag")+ theme(panel.grid.major = element_line(colour = "gray80", linewidth = 0.5, linetype="dotted")) 
+
+
+
+#could do some type of scatter plot with the GSEA terms for the unique degs, like all the gsea terms from each set of unique degs 
+```
+
+
+
+###starting from here, work on the SCC
+```{r}
+gtf <- read.table("../GRCh38_latest_genomic.gtf", sep="\t")
 head(gtf)
 iso2gene_good <- gtf[,c(1,9)]
 head(iso2gene_good)
@@ -890,17 +946,16 @@ head(iso2gene_good)
 colnames(iso2gene)=paste(c("DESCRIPTION","NAME"))
 
 #not actually using this way
-rld_N_NLS_gsea_input <- rld_N_NLS %>%
-  left_join(iso2gene) %>%
-  relocate(NAME, .before=DESCRIPTION)
-head(rld_N_NLS_gsea_input)
-write.table(rld_N_NLS_gsea_input, file="./Data_Files/rld_N_NLS_gsea_input.txt", quote=F, sep="\t")
-head(read.delim("./Data_Files/rld_N_NLS_gsea_input.txt", sep="\t"))
+#rld_N_NLS_gsea_input <- rld_N_NLS %>%
+ # left_join(iso2gene) %>%
+ # relocate(NAME, .before=DESCRIPTION)
+#head(rld_N_NLS_gsea_input)
+#write.table(rld_N_NLS_gsea_input, file="./Data_Files/rld_N_NLS_gsea_input.txt", quote=F, sep="\t")
+#head(read.delim("./Data_Files/rld_N_NLS_gsea_input.txt", sep="\t"))
 ```
 
 Trying GSEA according to https://learn.gencore.bio.nyu.edu/rna-seq-analysis/gene-set-enrichment-analysis/
 
-This is done in an interactive job on the cluster
 ```{r}
 #read in and prep files
 res_N_Flag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
