@@ -54,40 +54,26 @@ getwd()
 Open and inspect counts data (preprocessed using "tagseq_processing_HOWTO" on BU SCC)
 ```{r}
 #load the count file into R and name it "countData"
-countData = read.table("./Mengrui_HEK293T_2024_counts.txt")
 countData_new = read.table("./HEK293T_new_counts.txt")
 
 #how long is the file (in other words, how many genes do you have count data for)?
-length(countData[,1])
-#59048
 length(countData_new[,1])
 #40420
 
 #look at the first few rows of the your file
-head(countData)
 head(countData_new)
 
 #rename each of your samples (each column) with shorter names
 newColNames = c("flag1_S33", "flag2_S34", "flag3_S35", "N1_S36", "N2_S37", "N3_S38", "NLS1_S39", "NLS2_S40", "NLS3_S41")
-colnames(countData)=paste(newColNames)
-length(countData[,1])
-#59048
-head(countData)
-
 colnames(countData_new)=paste(newColNames)
+length(countData_new[,1])
+#40420
+head(countData_new)
 
 #look at the distribution of your count data throughout your samples
-totalCounts=colSums(countData)
-barplot(totalCounts, col=c("#669966", "#669966", "#669966", "#0066CC", "#0066CC", "#0066CC", "#CC99CC", "#CC99CC", "#CC99CC"), ylab="Raw Counts", xlab="HEK293T")
-#saved as HEK293T_counts.pdf
 totalCounts_new=colSums(countData_new)
 barplot(totalCounts_new, col=c("#669966", "#669966", "#669966", "#0066CC", "#0066CC", "#0066CC", "#CC99CC", "#CC99CC", "#CC99CC"), ylab="Raw Counts", xlab="HEK293T")
 #HEK293T_counts_new.pdf
-
-min(totalCounts)
-#480525     
-max(totalCounts)
-#862648 
 
 min(totalCounts_new)
 #451959     
@@ -113,16 +99,8 @@ allData
 
 Run preliminary DESeq (differential expression testing) and outlier analysis (using arrayqualitymetrics)
 ```{r}
-dds<-DESeqDataSetFromMatrix(countData=countData, colData=colData, design=~treat)
-dds<-DESeq(dds)
-
 dds_new<-DESeqDataSetFromMatrix(countData=countData_new, colData=colData, design=~treat)
 dds_new<-DESeq(dds_new)
-
-vsd.ge=assay(vst(dds))
-rl=vst(dds)
-e=ExpressionSet(assay(rl), AnnotatedDataFrame(as.data.frame(colData(rl))))
-arrayQualityMetrics(e,outdir="/Users/mariaingersoll/Desktop/BU_Research/Davies-Gilmore/Mengrui_HEK293T/HEK293T_RNAseq/arrayqualitymetrics",intgroup=c("treat"),force=T)
 
 vsd.ge_new=assay(vst(dds_new))
 rl_new=vst(dds_new)
@@ -138,20 +116,6 @@ Visualize the results
   --> And then the "treatments" to each other too
   
 ```{r}
-#N to Flag
-head(dds)
-res_N_Flag<- results(dds, contrast = c("treat", "N", "Flag"))
-res_N_Flag
-
-#NLS to Flag
-res_NLS_Flag<- results(dds, contrast = c("treat", "NLS", "Flag"))
-res_NLS_Flag
-
-#N to NLS
-res_N_NLS<- results(dds, contrast = c("treat", "N", "NLS"))
-res_N_NLS
-
-###new
 #N to Flag
 head(dds_new)
 res_N_Flag_new<- results(dds_new, contrast = c("treat", "N", "Flag"))
@@ -176,18 +140,12 @@ Read more about dispersion here: https://hbctraining.github.io/DGE_workshop/less
 
 Basically, as the mean of normalized counts for a given gene increases, the dispersion (variance) should decrease
 ```{r}
-plotDispEsts(dds, main="Dispersion Uptake")
-
 plotDispEsts(dds_new, main="Dispersion Uptake")
 ```
 
 - Now we are going to retrieve the rlog data, which will give us better transformation when size factors vary across samples
 - regularized log transformation, transforms COUNT DATA to log2 scale to minimize differences between samples for rows with small counts
 ```{r}
-rld <- rlogTransformation(dds, blind=TRUE)
-head(assay(rld))
-hist(assay(rld))
-
 rld_new <- rlogTransformation(dds_new, blind=TRUE)
 head(assay(rld_new))
 hist(assay(rld_new))
@@ -203,81 +161,19 @@ Raw Sample Comparison
 - dist computes and returns the distance matrix computed using the specified distance measure to compute distances between the rows of a data matrix (assay(rld))
 - Create a sample heatmap of the relatedness based on the count distance/difference between samples
 ```{r}
-sampleDists <- as.matrix(dist(t(assay(rld))))
-
-heatmap.2(as.matrix(sampleDists), key=F, trace="none",
-          col=colorpanel(100, "black", "white"), ColSideColors=c("#669966", "#669966", "#669966", "#0066CC", "#0066CC", "#0066CC", "#CC99CC", "#CC99CC", "#CC99CC"),RowSideColors =c("#669966", "#669966", "#669966", "#0066CC", "#0066CC", "#0066CC", "#CC99CC", "#CC99CC", "#CC99CC"),
-          margin=c(10, 10))
-
-#saved as sampledisthm.pdf as landscape with 5x5 dimensions
-
-#all the flags are grouping together and then the Ns and the NLS are grouping together
-
 sampleDists_new <- as.matrix(dist(t(assay(rld_new))))
 
 heatmap.2(as.matrix(sampleDists_new), key=F, trace="none",
           col=colorpanel(100, "black", "white"), ColSideColors=c("#669966", "#669966", "#669966", "#0066CC", "#0066CC", "#0066CC", "#CC99CC", "#CC99CC", "#CC99CC"),RowSideColors =c("#669966", "#669966", "#669966", "#0066CC", "#0066CC", "#0066CC", "#CC99CC", "#CC99CC", "#CC99CC"),
           margin=c(10, 10))
-#sampledisthm_new
+#sampledisthm_new as landscape with 5x5 dimensions
+
+#all the flags are grouping together and then the Ns and the NLS are grouping together
 ```
 
 Look at number of differentially expressed genes between the different treatments
 Use a p-adjusted value of <0.05
 ```{r}
-head(res_N_Flag)
-head(res_NLS_Flag)
-head(res_N_NLS)
-
-table(res_N_Flag$padj<0.05)
-# FALSE=9587 TRUE=1379
-table(res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>1.5)
-#FALSE  TRUE 
-#48821   506 
-summary(res_N_Flag, alpha=0.05)
-# out of 59048 with nonzero total read count
-#adjusted p-value < 0.05
-#LFC > 0 (up)       : 626, 1.1%
-#LFC < 0 (down)     : 753, 1.3%
-#outliers [1]       : 0, 0%
-#low counts [2]     : 48082, 81%
-#(mean count < 5)
-
-table(res_NLS_Flag$padj<0.05)
-# FALSE=7994 TRUE=1828 
-table(res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>1.5)
-#FALSE  TRUE 
-#49018   550 
-summary(res_NLS_Flag, alpha=0.05)
-#out of 59048 with nonzero total read count
-#adjusted p-value < 0.05
-#LFC > 0 (up)       : 743, 1.3%
-#LFC < 0 (down)     : 1085, 1.8%
-#outliers [1]       : 0, 0%
-#low counts [2]     : 49226, 83%
-#(mean count < 5)
-
-table(res_N_NLS$padj<0.05)
-# FALSE=59047 TRUE=1
-table(res_N_NLS$padj<0.05 & abs(res_N_NLS$log2FoldChange)>1.5)
-#FALSE 
-#59048 
-summary(res_N_NLS, alpha=0.05)
-#out of 59048 with nonzero total read count
-#adjusted p-value < 0.05
-#LFC > 0 (up)       : 1, 0.0017%
-#LFC < 0 (down)     : 0, 0%
-#outliers [1]       : 0, 0%
-#low counts [2]     : 0, 0%
-#(mean count < 0)
-
-plotMA(res_N_Flag, main="N vs Flag")
-#saved as plotma_N_Flag as landscape 5x4 in Figures
-plotMA(res_NLS_Flag, main="NLS vs Flag")
-#saved as plotma_NLS_Flag as landscape 5x4 in Figures
-plotMA(res_N_NLS, main="N vs NLS")
-#saved as plotma_N_NLS as landscape 5x4 in Figures
-
-###
 table(res_N_Flag_new$padj<0.05)
 # FALSE  TRUE 
 # 5370  1353
@@ -324,42 +220,14 @@ summary(res_N_NLS_new, alpha=0.05)
 
 Now make a table of the differential expression values (log2fc) between N, Flag; NLS, Flag; and N, NLS
 ```{r}
-write.table(res_N_Flag, file="./Data_Files/N_Flag_DE_24.txt", quote=F, sep="\t")
-head(read.delim("./Data_Files/N_Flag_DE_24.txt"))
-res_N_Flag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
-head(res_N_Flag)
-res_N_Flag$lfc_NFlag <- res_N_Flag$log2FoldChange
-lfc_N_Flag <- res_N_Flag %>%
-  dplyr::select(lfc_NFlag)
-head(lfc_N_Flag)
-
-write.table(res_NLS_Flag, file="./Data_Files/NLS_Flag_DE_24.txt", quote=F, sep="\t")
-head(read.delim("./Data_Files/NLS_Flag_DE_24.txt"))
-res_NLS_Flag<- read.delim("./Data_Files/NLS_Flag_DE_24.txt")
-head(res_NLS_Flag)
-res_NLS_Flag$lfc_NLSFlag <- res_NLS_Flag$log2FoldChange
-lfc_NLS_Flag <- res_NLS_Flag %>%
-  dplyr::select(lfc_NLSFlag)
-head(lfc_NLS_Flag)
-
-write.table(res_N_NLS, file="./Data_Files/N_NLS_DE_24.txt", quote=F, sep="\t")
-head(read.delim("./Data_Files/N_NLS_DE_24.txt"))
-res_N_NLS<- read.delim("./Data_Files/N_NLS_DE_24.txt")
-head(res_N_NLS)
-res_N_NLS$lfc_NNLS <- res_N_NLS$log2FoldChange
-lfc_N_NLS <- res_N_NLS %>%
-  dplyr::select(lfc_NNLS)
-head(lfc_N_NLS)
-
-####
 write.table(res_N_Flag_new, file="./Data_Files/N_Flag_DE_24_new.txt", quote=F, sep="\t")
 head(read.delim("./Data_Files/N_Flag_DE_24_new.txt"))
 res_N_Flag_new<- read.delim("./Data_Files/N_Flag_DE_24_new.txt")
-head(res_N_Flag_new)
+head(res_N_Flag_new) #genes are rownames; basemean; log2foldchange; lfcse; stat; pval; padj; lfc_NFlag
 res_N_Flag_new$lfc_NFlag <- res_N_Flag_new$log2FoldChange
 lfc_N_Flag_new <- res_N_Flag_new %>%
   dplyr::select(lfc_NFlag)
-head(lfc_N_Flag_new)
+head(lfc_N_Flag_new) #genes are rownames; lfc_NFlag
 
 write.table(res_NLS_Flag_new, file="./Data_Files/NLS_Flag_DE_24_new.txt", quote=F, sep="\t")
 head(read.delim("./Data_Files/NLS_Flag_DE_24_new.txt"))
@@ -382,18 +250,6 @@ head(lfc_N_NLS_new)
 
 -Make a table with logfc in NvsFlag and lfc in NLSvsFlag as columns, correlate two columns, is there a pos linear relationshop in lfc? 
 ```{r}
-lfc <- cbind(lfc_N_Flag, lfc_NLS_Flag)
-head(lfc)
-
-ggscatter(lfc, x = "lfc_NFlag", y = "lfc_NLSFlag", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "DEG LogFoldChange N vs Flag", ylab = "DEG LogFoldChange NLS vs Flag")
-
-#saved as correlation_NNLS.pdf as landscape 5x4 in Figures
-#positively correlated R=0.64, p<2.2e-16
-
-######
 lfc_new <- cbind(lfc_N_Flag_new, lfc_NLS_Flag_new)
 head(lfc_new)
 
@@ -401,32 +257,16 @@ ggscatter(lfc_new, x = "lfc_NFlag", y = "lfc_NLSFlag",
           add = "reg.line", conf.int = TRUE, 
           cor.coef = TRUE, cor.method = "pearson",
           xlab = "DEG LogFoldChange N vs Flag", ylab = "DEG LogFoldChange NLS vs Flag")
+#saved as correlation_NNLS_new.pdf as landscape 5x4 in Figures
 #positively correlated R=0.66, p<2.2e-16
+
+###might have to make this a different stat (as in not linear correlation)
 ```
 
 - Get the p-values from your data file
 - Create val_N_Flag that is a table from res_N_Flag of just the pvalues and adjusted p-values (p-adj)
 - Then give the columns appropriate names
 ```{r}
-val_N_Flag=cbind(res_N_Flag$pvalue, res_N_Flag$padj)
-head(val_N_Flag)
-colnames(val_N_Flag)=c("pval.N_Flag", "padj.N_Flag")
-length(val_N_Flag[,1])
-# 59048
-
-val_NLS_Flag=cbind(res_NLS_Flag$pvalue, res_NLS_Flag$padj)
-head(val_NLS_Flag)
-colnames(val_NLS_Flag)=c("pval.NLS_Flag", "padj.NLS_Flag")
-length(val_NLS_Flag[,1])
-# 59048
-
-val_N_NLS=cbind(res_N_NLS$pvalue, res_N_NLS$padj)
-head(val_N_NLS)
-colnames(val_N_NLS)=c("pval.N_NLS", "padj.N_NLS")
-length(val_N_NLS[,1])
-# 59048
-
-#########
 val_N_Flag_new=cbind(res_N_Flag_new$pvalue, res_N_Flag_new$padj)
 head(val_N_Flag_new)
 colnames(val_N_Flag_new)=c("pval.N_Flag", "padj.N_Flag")
@@ -448,16 +288,6 @@ length(val_N_NLS_new[,1])
 
 Return a logical vector in which both cases (pval and padj) are complete (no missing values)
 ```{r}
-table(complete.cases(val_N_Flag))
-# FALSE=48082 TRUE=10966
-
-table(complete.cases(val_NLS_Flag))
-# FALSE=49226 TRUE=9822
-
-table(complete.cases(val_N_NLS))
-# TRUE=59048
-
-#######
 table(complete.cases(val_N_Flag_new))
 # FALSE=33697 TRUE=6723
 
@@ -472,31 +302,6 @@ table(complete.cases(val_N_NLS_new))
 - Then make the column names for rld the same ones that were in colData$treat
 - And separate out into the different comparisons
 ```{r}
-rlog=rlogTransformation(dds, blind=TRUE) 
-rld=assay(rlog)
-head(rld)
-length(rld[,1])
-#59048
-
-rld_Flag <- rld[,1:3]
-head(rld_Flag)
-
-rld_N <- rld[,4:6]
-head(rld_N)
-
-rld_NLS <- rld[,7:9]
-head(rld_NLS)
-
-rld_NFlag <- cbind(rld_N, rld_Flag)
-head(rld_NFlag)
-
-rld_NLSFlag <- cbind(rld_NLS, rld_Flag)
-head(rld_NLSFlag)
-
-rld_NNLS <- cbind(rld_N, rld_NLS)
-head(rld_NNLS)
-
-########
 rlog_new=rlogTransformation(dds_new, blind=TRUE) 
 rld_new=assay(rlog_new)
 head(rld_new)
@@ -529,23 +334,6 @@ write.csv(rld_new_named, "./Data_Files/mingers_rldall_new_named_24.csv", quote=F
 
 - Combine rlds with your tables of pval and padj values (with the respective conditions)
 ```{r}
-rldpvals_NFlag=cbind(rld_NFlag,val_N_Flag)
-head(rldpvals_NFlag)
-dim(rldpvals_NFlag)
-table(complete.cases(rldpvals_NFlag))
-#FALSE  TRUE 
-#48082 10966
-write.csv(rldpvals_NFlag, "./Data_Files/mingers_NFlag_RLDandPVALS_24.csv", quote=F)
-
-rldpvals_NLSFlag=cbind(rld_NLSFlag,val_NLS_Flag)
-head(rldpvals_NLSFlag)
-dim(rldpvals_NLSFlag)
-table(complete.cases(rldpvals_NLSFlag))
-#FALSE  TRUE 
-#49226  9822 
-write.csv(rldpvals_NLSFlag, "./Data_Files/mingers_NLSFlag_RLDandPVALS_24.csv", quote=F)
-
-######
 rldpvals_NFlag_new=cbind(rld_NFlag_new,val_N_Flag_new)
 head(rldpvals_NFlag_new)
 dim(rldpvals_NFlag_new)
@@ -566,25 +354,7 @@ write.csv(rldpvals_NLSFlag_new, "./Data_Files/mingers_NLSFlag_RLDandPVALS_24_new
 
 Read back in the csv files you just made to prep for PCA
 ```{r}
-rldpvals_NFlag <- read.csv(file="./Data_Files/mingers_NFlag_RLDandPVALS_24.csv", row.names=1)
-head(rldpvals_NFlag)
-rld_NFlag <- rldpvals_NFlag[,1:6]
-head(rld_NFlag)
 
-rld_pvals_NFlag_name <- rldpvals_NFlag %>%
-  tibble::rownames_to_column(var = "ISO") %>%
-  left_join(iso2gene_good)
-
-rldpvals_NLSFlag <- read.csv(file="./Data_Files/mingers_NLSFlag_RLDandPVALS_24.csv", row.names=1)
-head(rldpvals_NLSFlag)
-rld_NLSFlag <- rldpvals_NLSFlag[,1:6]
-head(rld_NLSFlag)
-
-rld_pvals_NLSFlag_name <- rldpvals_NLSFlag %>%
-  tibble::rownames_to_column(var = "ISO") %>%
-  left_join(iso2gene_good)
-
-#######
 rldpvals_NFlag_new <- read.csv(file="./Data_Files/mingers_NFlag_RLDandPVALS_24_new.csv", row.names=1)
 head(rldpvals_NFlag_new)
 rld_NFlag_new <- rldpvals_NFlag_new[,1:6]
@@ -614,22 +384,7 @@ Now going to perform PCA on the data to visualize overall effect of experimental
 - turn pca$x into a dataframe
 ```{r}
 #for ALL
-rld_t=t(rld)
-#colnames(rld_t)
-pca <- prcomp(rld_t,center = TRUE)
-li <- pca$sdev^2 / sum(pca$sdev^2)
-pc1v <- round(li[1] * 100, 1)
-pc2v <- round(li[2] * 100, 1)
-pca_s <- as.data.frame(pca$x)
-pca_s <- pca_s[,c(1,2)]
 
-pca_s$Samples = row.names(pca_s)
-pca_s$sample = c("flag1_S33", "flag2_S34", "flag3_S35", "N1_S36", "N2_S37", "N3_S38", "NLS1_S39", "NLS2_S40", "NLS3_S41")
-pca_s$treat=allData$treat
-
-head(pca_s)
-
-#######
 rld_t_new=t(rld_new)
 #colnames(rld_t)
 pca_new <- prcomp(rld_t_new,center = TRUE)
@@ -646,48 +401,13 @@ pca_s_new$treat=allData$treat
 
 Creating PCA plots
 ```{r}
+install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+library(pairwiseAdonis)
+
 treat_color= c("#669966", "#0066CC", "#CC99CC")
 #fill_color=c("white","white","gray50","purple")
 #sym_shape = c(21,22,23,24,25,21,22,23,24,25)
 
-
-pca_plot <- ggplot(pca_s, aes(PC1, PC2, color = treat, group=treat)) +
-  geom_point(size=2) +
-  #  geom_text_repel(aes(label=Samples)) +
-  scale_colour_manual(values=treat_color)+
-  #scale_fill_manual(values=fill_color, guide=NULL)+
-  #scale_shape_manual(values=sym_shape, guide=guide_legend(override.aes = list(fill=list("white","white","white","white","white","black","black","black","black","black")))) +
-  stat_ellipse()+
-  labs(color="Treatment")+
-  xlab(paste0("PC1: ",pc1v,"% variance")) +
-  ylab(paste0("PC2: ",pc2v,"% variance")) +
-  theme(panel.background = element_rect(color="black", fill="white"),
-        axis.text = element_text(colour="black", size=10), 
-        axis.title.x = ggtext::element_markdown(face="bold", size=12),
-        axis.title.y = ggtext::element_markdown(face="bold",size=12),
-        panel.grid.major = element_line(colour = "gray80", linewidth = 0.5, linetype="dotted"),
-        legend.position="right",
-        legend.background=element_rect(color="black"),
-        legend.text=element_text(face="bold", color="black", size=8),
-        legend.title= element_blank(),
-        legend.text.align = 0,
-        legend.key.size=unit(10,"point"))
-pca_plot # saved as portrait with 4x3 as pca_HEK293T.pdf in Figures
-
-install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
-library(pairwiseAdonis)
-
-# Effect of treatment
-adonis2(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
-# Pr(>F) = 0.023 *
-
-# Pairwise effect of treatment (to get individual pairwise comparisons)
-pairwise.adonis2(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
-# Flag_vs_N Pr(>F)=0.1
-# Flag_vs_NLS Pr(>F)=0.1
-# N_vs_NLS Pr(>F)=0.5
-
-##########
 pca_plot_new <- ggplot(pca_s_new, aes(PC1, PC2, color = treat, group=treat)) +
   geom_point(size=2) +
   #  geom_text_repel(aes(label=Samples)) +
@@ -725,220 +445,6 @@ pairwise.adonis2(pca_new$x ~ treat, data = pca_s_new, method='eu', na.rm = TRUE)
 Not going to run plasticity measurements
 
 Skipping to Venn Diagram analysis (line 999 of Aiptasia rmarkdown)
-```{r}
-#N to Flag
-res_N_Flag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
-head(res_N_Flag)
-res_N_Flag$lfc_NFlag <- res_N_Flag$log2FoldChange
-head(res_N_Flag)
-
-#NLS to Flag
-res_NLS_Flag<- read.delim("./Data_Files/NLS_Flag_DE_24.txt")
-head(res_NLS_Flag)
-res_NLS_Flag$lfc_NLSFlag <- res_NLS_Flag$log2FoldChange
-head(res_NLS_Flag)
-
-#even though I'm not using this, let's also read in N to NLS
-
-res_N_NLS<- read.delim("./Data_Files/N_NLS_DE_24.txt")
-head(res_N_NLS)
-res_N_NLS$lfc_NNLS <- res_N_NLS$log2FoldChange
-head(res_N_NLS)
-
-
-# look at ALL DEGs
-N_DEGs10=row.names(res_N_Flag[res_N_Flag$padj<0.10 & !is.na(res_N_Flag$padj),])
-length(N_DEGs10)
-# 1800
-N_DEGs05=row.names(res_N_Flag[res_N_Flag$padj<0.05 & !is.na(res_N_Flag$padj),])
-length(N_DEGs05)
-# 1379
-#with abs(lfc) of 1.5
-N_DEGs05_lfc1.5=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>1.5 & !is.na(res_N_Flag$padj),])
-length(N_DEGs05_lfc1.5)
-# 506
-#with abs(lfc) of 2
-N_DEGs05_lfc2=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>2 & !is.na(res_N_Flag$padj),])
-length(N_DEGs05_lfc2)
-#279
-
-NLS_DEGs10=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.10 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs10)
-# 2339
-NLS_DEGs05=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs05)
-# 1828
-#with abs(lfc) of 1.5
-NLS_DEGs05_lfc1.5=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>1.5 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs05_lfc1.5)
-# 550
-#with abs(lfc) of 2
-NLS_DEGs05_lfc2=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>2 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs05_lfc2)
-#296
-
-### also identifying the up and down DEGS for N and NLS vs Flag with 0.10 and 0.05 padjs
-#N to Flag first
-head(res_N_Flag)
-head(rldpvals_NFlag)
-N_lfc=cbind(res_N_Flag$lfc_NFlag)
-N_rld_pvals_lfc <- cbind(rldpvals_NFlag, N_lfc)
-head(N_rld_pvals_lfc)
-
-N_Sup10=subset(N_rld_pvals_lfc, N_lfc>0 & padj.N_Flag<0.1 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
-head(N_Sup10)
-nrow(N_Sup10)
-#812
-N_Sdown10=subset(N_rld_pvals_lfc, N_lfc<0 & padj.N_Flag<0.1 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
-head(N_Sdown10)
-nrow(N_Sdown10)
-#988
-
-N_Sup05=subset(N_rld_pvals_lfc, N_lfc>0 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
-head(N_Sup05)
-nrow(N_Sup05)
-#626
-N_Sdown05=subset(N_rld_pvals_lfc, N_lfc<0 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
-head(N_Sdown05)
-nrow(N_Sdown05)
-#753
-
-###up and down with lfc set to 1.5
-N_Sup05_1.5=subset(N_rld_pvals_lfc, N_lfc>1.5 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
-head(N_Sup05_1.5)
-nrow(N_Sup05_1.5)
-#451
-N_Sdown05_1.5=subset(N_rld_pvals_lfc, N_lfc< -1.5 & padj.N_Flag<0.05 & !is.na(N_rld_pvals_lfc$padj.N_Flag))
-head(N_Sdown05_1.5)
-nrow(N_Sdown05_1.5)
-#55
-
-
-#Now NLS to Flag
-head(res_NLS_Flag)
-head(rldpvals_NLSFlag)
-NLS_lfc=cbind(res_NLS_Flag$lfc_NLSFlag)
-NLS_rld_pvals_lfc <- cbind(rldpvals_NLSFlag, NLS_lfc)
-head(NLS_rld_pvals_lfc)
-
-NLS_Sup10=subset(NLS_rld_pvals_lfc, NLS_lfc>0 & padj.NLS_Flag<0.1 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
-head(NLS_Sup10)
-nrow(NLS_Sup10)
-#971
-NLS_Sdown10=subset(NLS_rld_pvals_lfc, NLS_lfc<0 & padj.NLS_Flag<0.1 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
-head(NLS_Sdown10)
-nrow(NLS_Sdown10)
-#1368
-
-NLS_Sup05=subset(NLS_rld_pvals_lfc, NLS_lfc>0 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
-head(NLS_Sup05)
-nrow(NLS_Sup05)
-#743
-NLS_Sdown05=subset(NLS_rld_pvals_lfc, NLS_lfc<0 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
-head(NLS_Sdown05)
-nrow(NLS_Sdown05)
-#1085
-
-###up and down with lfc set to 1.5
-NLS_Sup05_1.5=subset(NLS_rld_pvals_lfc, NLS_lfc>1.5 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
-head(NLS_Sup05_1.5)
-nrow(NLS_Sup05_1.5)
-#492
-NLS_Sdown05_1.5=subset(NLS_rld_pvals_lfc, NLS_lfc< -1.5 & padj.NLS_Flag<0.05 & !is.na(NLS_rld_pvals_lfc$padj.NLS_Flag))
-head(NLS_Sdown05_1.5)
-nrow(NLS_Sdown05_1.5)
-#58
-
-#Now make the Venn with the DEGs from the 0.05 cutoff
-candidates_all05=list("N"=N_DEGs05, "NLS"=NLS_DEGs05)
-#head(candidates_all)
-prettyvenn05=venn.diagram(
-  x = candidates_all05,
-  category.names=c("N (1379)", "NLS (1828)"),
-  col=c("#0066CC", "#CC99CC"),
-  lwd=c(3,3),
-  filename=NULL,
-  #main = "DEGs in Comparison to Flag",
-  main.cex = 1.5,
-  main.fontface = "bold",
-  main.fontfamily = "sans",
-  #col = "transparent",
-  fill = c("#0066CC", "#CC99CC"),
-  alpha = 0.3,
-  cex = 1.5,
-  fontfamily = "sans",
-  fontface = "bold",
-  cat.default.pos = "text",
-  cat.col = c("black", "black"),
-  cat.cex = 1.25,
-  cat.fontfamily = "sans",
-  cat.dist = c(0.2, 0.2),
-  cat.pos = c(-14.5, -4.5)
-)
-
-grid.draw(prettyvenn05)
-#saved as venn05_021924.pdf as landscape with 6x6 dimensions in Figures
-
-#Make another Venn with the DEGs from the 0.05 padj cutoff + 1.5 lfc cutoff
-candidates_all05_1.5=list("N"=N_DEGs05_lfc1.5, "NLS"=NLS_DEGs05_lfc1.5)
-
-venn05_1.5=venn.diagram(
-  x = candidates_all05_1.5,
-  category.names=c("N (506)", "NLS (550)"),
-  col=c("#0066CC", "#CC99CC"),
-  lwd=c(3,3),
-  filename=NULL,
-  #main = "DEGs in Comparison to Flag",
-  main.cex = 1.5,
-  main.fontface = "bold",
-  main.fontfamily = "sans",
-  #col = "transparent",
-  fill = c("#0066CC", "#CC99CC"),
-  alpha = 0.3,
-  cex = 1.5,
-  fontfamily = "sans",
-  fontface = "bold",
-  cat.default.pos = "text",
-  cat.col = c("black", "black"),
-  cat.cex = 1.25,
-  cat.fontfamily = "sans",
-  cat.dist = c(0.2, 0.2),
-  cat.pos = c(-14.5, -4.5)
-)
-
-grid.draw(venn05_1.5)
-#saved as venn05_1.5_040624.pdf as landscape with 6x6 dimensions in Figures
-
-#Make a third Venn with the DEGs from the 0.05 padj cutoff + 2 lfc cutoff
-candidates_all05_2=list("N"=N_DEGs05_lfc2, "NLS"=NLS_DEGs05_lfc2)
-
-venn05_2=venn.diagram(
-  x = candidates_all05_2,
-  category.names=c("N (279)", "NLS (296)"),
-  col=c("#0066CC", "#CC99CC"),
-  lwd=c(3,3),
-  filename=NULL,
-  #main = "DEGs in Comparison to Flag",
-  main.cex = 1.5,
-  main.fontface = "bold",
-  main.fontfamily = "sans",
-  #col = "transparent",
-  fill = c("#0066CC", "#CC99CC"),
-  alpha = 0.3,
-  cex = 1.5,
-  fontfamily = "sans",
-  fontface = "bold",
-  cat.default.pos = "text",
-  cat.col = c("black", "black"),
-  cat.cex = 1.25,
-  cat.fontfamily = "sans",
-  cat.dist = c(0.2, 0.19),
-  cat.pos = c(-14.5, -2.5)
-)
-
-grid.draw(venn05_2)
-#saved as venn05_2_040624.pdf as landscape with 6x6 dimensions in Figures
-```
 
 Venn Diagrams with the new datasets (with the Refseq identifiers)
 ```{r}
@@ -1135,7 +641,7 @@ grid.draw(venn05_2_new)
 
 
 Create a term go_input_NFlag, a term go_input_NLSFlag, and a term go_input_NNLS that has the -logpval as a neg number if the l2fc is < 0 and a pos number if the l2fc is > 0
-- These terms will go into the go analysis
+- These terms will go into the GO analysis
 - These terms are including na.omit so anything without a padj value will be removed
 
 ```{r}
@@ -1224,35 +730,7 @@ Making the emapper annotation files from the GRCh38 RefSeq proteins
 Prepping for Fisher for the degs from the Venn
 - Looking at the shared 1213 degs
 ```{r}
-##read back in your res_N_Flag and res_NLS_Flag files with the rownames as the geneID but name it something else so that it doesn't get confused with the res_N_Flag and res_NLS_Flag modified for GO input
-resNFlag<- read.delim("./Data_Files/N_Flag_DE_24.txt")
-head(resNFlag)
-resNFlag$lfc_NFlag <- resNFlag$log2FoldChange
-head(resNFlag)
-
-resNLSFlag<- read.delim("./Data_Files/NLS_Flag_DE_24.txt")
-head(resNLSFlag)
-resNLSFlag$lfc_NLSFlag <- resNLSFlag$log2FoldChange
-head(resNLSFlag)
-
-intersect05 <- intersect(N_DEGs05, NLS_DEGs05)
-shared_N <- as.data.frame(resNFlag)[rownames(resNFlag) %in% intersect05, ] %>% select(log2FoldChange)
-N_name <- c("N_lfc")
-colnames(shared_N) <- N_name
-shared_NLS <- as.data.frame(resNLSFlag)[rownames(resNLSFlag) %in% intersect05, ] %>% select(log2FoldChange)
-NLS_name <- c("NLS_lfc")
-colnames(shared_NLS) <- NLS_name
-
-shared_both_lfc <- cbind(shared_N, shared_NLS)
-head(shared_both_lfc)
-
-ggscatter(shared_both_lfc, x = "N_lfc", y = "NLS_lfc", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "DEG LogFoldChange N to Flag", ylab = "DEG LogFoldChange NLS to Flag")+ theme(panel.grid.major = element_line(colour = "gray80", linewidth = 0.5, linetype="dotted"))
-
-#saved as shared_DEGs05_correlation.pdf as landscape with 5x5
-#R=0.99, p<2.2e-16; no DEGs that are doing opposite things
+##read back in your N_Flag_DE_24_new and NLS_Flag_DE_24_new files with the rownames as the geneID but name it something else so that it doesn't get confused with the res_N_Flag and res_NLS_Flag modified for GO input
 
 #########
 resNFlag_new<- read.delim("./Data_Files/N_Flag_DE_24_new.txt")
@@ -1283,55 +761,10 @@ ggscatter(shared_both_lfc_new, x = "N_lfc", y = "NLS_lfc",
 
 #saved as shared_DEGs05_correlation_new.pdf as landscape with 5x5
 #R=0.99, p<2.2e-16; no DEGs that are doing opposite things
+###might need to change this to so a non-linear scale?
 ```
 
-Now doing GO analysis on the N only, NLS only, and shared DEGs (via Fisher Exact test)
 
-- First format your input files
-```{r}
-iso2go_name <- read.table("./Data_Files/GRCh38_iso2go.tab", sep="\t")
-colnames(iso2go_name)=paste(c("gene_ID", "GO"))
-
-#starting with just the shared ones because those were easiest to pull out from above; doesn't matter whether we do N or NLS for this because they have the same
-head(shared_N)
-shared_fisher <- shared_N
-shared_fisher <- rownames_to_column(shared_fisher, var="gene_ID")
-head(shared_fisher) 
-shared_fisher <- shared_fisher %>%
-  mutate(Fishers = 1) %>%
-  dplyr::select(gene_ID, Fishers) %>%
-  full_join(iso2go_name) %>%
-  mutate(Fishers = if_else(is.na(Fishers), 0, 1)) %>%
-  select(gene_ID, Fishers)
-head(shared_fisher)
-write.csv(shared_fisher, file="./Data_Files/shared_fisher_GO.csv", quote=F, row.names=FALSE)
-
-
-#now trying to isolate the just N and just NLS ones
-N_DEGs05_DF <- as.data.frame(N_DEGs05) %>%
-  mutate(gene_ID = N_DEGs05) %>%
-  mutate(Fishers_N = 1)%>%
-  dplyr::select(gene_ID, Fishers_N)
-NLS_DEGs05_DF <- as.data.frame(NLS_DEGs05) %>%
-  mutate(gene_ID = NLS_DEGs05) %>%
-  mutate(Fishers_NLS = 1)%>%
-  dplyr::select(gene_ID, Fishers_NLS)
-fj <- full_join(N_DEGs05_DF, NLS_DEGs05_DF) %>%
-  full_join(iso2go_name)
-tail(fj)
-
-fishers_N_only <- fj %>%
-  mutate(Fishers_N = if_else(is.na(Fishers_N), 0, 1)) %>%
-  select(gene_ID, Fishers_N)
-write.csv(fishers_N_only, file="./Data_Files/fishers_N_only_GO.csv", quote=F, row.names=FALSE)
-
-fishers_NLS_only <- fj %>%
-  mutate(Fishers_NLS = if_else(is.na(Fishers_NLS), 0, 1)) %>%
-  select(gene_ID, Fishers_NLS)
-write.csv(fishers_NLS_only, file="./Data_Files/fishers_NLS_only_GO.csv", quote=F, row.names=FALSE)
-
-########not doing this for the new Refseq, because the gene IDs aren't set up right in the iso2go
-```
 
 #################
 
