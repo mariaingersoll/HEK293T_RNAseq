@@ -1,0 +1,1132 @@
+---
+title: "HEK293T_GO_GSEA"
+output: html_document
+date: "2024-03-14"
+editor_options: 
+  chunk_output_type: inline
+---
+THE GSEA CODE ONLY WORKS WITH R 4.3
+
+
+```{r}
+setwd("/projectnb/davies-hb/Maria/Mengrui_HEK293T/GO_GSEA_analysis")
+```
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("DESeq2")
+BiocManager::install("arrayQualityMetrics")
+install.packages("gplots")
+install.packages("pheatmap")
+install.packages("vegan")
+install.packages("ggplot2")
+install.packages("ggrepel")
+install.packages("VennDiagram")
+install.packages("ggtext")
+install.packages("reshape2")
+install.packages("tidyselect")
+install.packages("dplyr")
+install.packages("devtools")
+install.packages("tibble")
+install.packages("RColorBrewer")
+```
+
+
+```{r}
+library(DESeq2)
+library(arrayQualityMetrics)
+library(gplots)
+library(pheatmap)
+library(vegan)
+library(ggplot2)
+library(ggrepel)
+library(VennDiagram)
+library(ggtext)
+library(reshape2)
+library(tidyselect)
+library(dplyr)
+library(devtools)
+library(tibble)
+library(RColorBrewer)
+```
+
+read in iso2gene
+NAH
+```{r}
+iso2gene = read.table("./GRCh38_gene2iso.tab", sep="\t")
+head(iso2gene)
+
+colnames(iso2gene)=paste(c("DESCRIPTION","NAME"))
+```
+
+Read in gtf to make iso2gene
+```{r}
+#read in gtf to try to get a better iso2gene
+gtf <- read.table("../GRCh38_latest_genomic.gtf", sep="\t")
+head(gtf)
+iso2gene_good <- gtf[,c(1,9)]
+head(iso2gene_good)
+iso2gene_good = iso2gene_good %>%
+  mutate(NAME = gsub(".*gene_name ", "", V9)) %>%
+  mutate(NAME = gsub(";", "", NAME)) %>%
+  mutate(ISO = gsub(".*transcript_id rna-", "", V9)) %>%
+  mutate(ISO = gsub("; .*", "", ISO)) %>%
+  #mutate(ISO = gsub("transcript_.*", "", ISO))%>%
+  dplyr::select(NAME, ISO) %>%
+  distinct()
+#head(seq2iso2gene)
+#nrow(seq2iso2gene)
+#seq2iso <- seq2iso2gene %>%
+#  dplyr::select(V1, ISO)
+#length(unique(seq2iso$ISO))
+
+head(iso2gene_good)
+
+seq2iso <-  read.table("../GRCh38_seq2iso_new.tab", sep=" ")
+head(seq2iso)
+nrow(seq2iso)
+
+iso2gene_sep <- subset(iso2gene_good, ISO %in% seq2iso$V1)
+nrow(iso2gene_sep)
+head(iso2gene_sep)
+
+gff <- read.table("../GRCh38_latest_genomic.gff", sep="\t")
+head(gff)
+length(unique(gff$V1))
+gff_cds <- subset(gff, V3=="CDS")
+gff_cds
+
+cds_seq2iso_1 <- gff_cds %>%
+  mutate(REFSEQ = gsub(".*ID=cds-", "", V9))%>%
+  mutate(REFSEQ = gsub(";.*", "", REFSEQ))%>%
+  mutate(ISO = gsub(".*Parent=rna-", "", V9)) %>%
+  mutate(ISO = gsub(";.*", "", ISO)) %>%
+  dplyr::select(REFSEQ, ISO)%>% 
+  relocate(ISO, .before=REFSEQ) %>%
+  distinct()
+
+cds_seq2iso <- gff_cds %>%
+  mutate(REFSEQ = gsub(".*ID=cds-", "", V9))%>%
+  mutate(REFSEQ = gsub("\\..*", "", REFSEQ))%>%
+  mutate(ISO = gsub(".*Parent=rna-", "", V9)) %>%
+  mutate(ISO = gsub(";.*", "", ISO)) %>%
+  dplyr::select(REFSEQ, ISO)%>% 
+  distinct()
+
+cds_seq2seq <- gff_cds %>%
+  mutate(REFSEQ = gsub(".*ID=cds-", "", V9))%>%
+  mutate(REFSEQ = gsub(";.*", "", REFSEQ))%>%
+  mutate(REFSEQ_new = gsub(".*ID=cds-", "", V9))%>%
+  mutate(REFSEQ_new = gsub("\\..*", "", REFSEQ_new))%>%
+  dplyr::select(REFSEQ, REFSEQ_new)%>% 
+  distinct()
+
+length(unique(cds_seq2iso$REFSEQ)) 
+length(unique(cds_seq2iso$ISO))
+
+write.table(cds_seq2iso_1, file="../cds_seq2iso_input.tab", quote=F, sep="\t", row.names = FALSE, col.names = FALSE)
+
+shared_both_col <- as.data.frame(shared_both_col) %>% 
+  left_join(cds_seq2seq)
+shared_both_col <- shared_both_col %>%
+  left_join(cds_seq2iso_1)
+write.csv(shared_both_col, file = "shared_both_col.csv", quote=F, row.names=FALSE)
+```
+
+
+```{r}
+res_N_Flag<- read.delim("./N_Flag_DE_24.txt")
+head(res_N_Flag)
+res_N_Flag$lfc_NFlag <- res_N_Flag$log2FoldChange
+head(res_N_Flag)
+
+res_NLS_Flag<- read.delim("./NLS_Flag_DE_24.txt")
+head(res_NLS_Flag)
+res_NLS_Flag$lfc_NLSFlag <- res_NLS_Flag$log2FoldChange
+head(res_NLS_Flag)
+
+#########
+res_N_Flag_new<- read.delim("./N_Flag_DE_24_new.txt")
+head(res_N_Flag_new)
+res_N_Flag_new$lfc_NFlag <- res_N_Flag_new$log2FoldChange
+head(res_N_Flag_new)
+
+res_NLS_Flag_new<- read.delim("./NLS_Flag_DE_24_new.txt")
+head(res_NLS_Flag_new)
+res_NLS_Flag_new$lfc_NLSFlag <- res_NLS_Flag_new$log2FoldChange
+head(res_NLS_Flag_new)
+```
+
+
+
+Get each of your DEG lists (padj<0.05 no lfc filter, padj<0.05 and lfc>|1.5|, padj<0.05 and |lfc|>2)
+```{r}
+N_DEGs05=row.names(res_N_Flag[res_N_Flag$padj<0.05 & !is.na(res_N_Flag$padj),])
+length(N_DEGs05)
+# 1379
+#with abs(lfc) of 1.5
+N_DEGs05_lfc1.5=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>1.5 & !is.na(res_N_Flag$padj),])
+length(N_DEGs05_lfc1.5)
+# 506
+#with abs(lfc) of 2
+N_DEGs05_lfc2=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>2 & !is.na(res_N_Flag$padj),])
+length(N_DEGs05_lfc2)
+#279
+
+NLS_DEGs05=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs05)
+# 1828
+#with abs(lfc) of 1.5
+NLS_DEGs05_lfc1.5=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>1.5 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs05_lfc1.5)
+# 550
+#with abs(lfc) of 2
+NLS_DEGs05_lfc2=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>2 & !is.na(res_NLS_Flag$padj),])
+length(NLS_DEGs05_lfc2)
+#296
+
+#############
+N_DEGs05_new=row.names(res_N_Flag_new[res_N_Flag_new$padj<0.05 & !is.na(res_N_Flag_new$padj),])
+length(N_DEGs05_new)
+# 1353
+#with abs(lfc) of 1.5
+N_DEGs05_lfc1.5_new=row.names(res_N_Flag_new[res_N_Flag_new$padj<0.05 & abs(res_N_Flag_new$log2FoldChange)>1.5 & !is.na(res_N_Flag_new$padj),])
+length(N_DEGs05_lfc1.5_new)
+# 312
+#with abs(lfc) of 2
+N_DEGs05_lfc2_new=row.names(res_N_Flag_new[res_N_Flag_new$padj<0.05 & abs(res_N_Flag_new$log2FoldChange)>2 & !is.na(res_N_Flag_new$padj),])
+length(N_DEGs05_lfc2_new)
+#142
+
+NLS_DEGs05_new=row.names(res_NLS_Flag_new[res_NLS_Flag_new$padj<0.05 & !is.na(res_NLS_Flag_new$padj),])
+length(NLS_DEGs05_new)
+# 1701
+#with abs(lfc) of 1.5
+NLS_DEGs05_lfc1.5_new=row.names(res_NLS_Flag_new[res_NLS_Flag_new$padj<0.05 & abs(res_NLS_Flag_new$log2FoldChange)>1.5 & !is.na(res_NLS_Flag_new$padj),])
+length(NLS_DEGs05_lfc1.5_new)
+# 340
+#with abs(lfc) of 2
+NLS_DEGs05_lfc2_new=row.names(res_NLS_Flag_new[res_NLS_Flag_new$padj<0.05 & abs(res_NLS_Flag_new$log2FoldChange)>2 & !is.na(res_NLS_Flag_new$padj),])
+length(NLS_DEGs05_lfc2_new)
+#175
+```
+
+Get shared DEGs from different cutoffs
+```{r}
+#no lfc filter
+intersect05 <- intersect(N_DEGs05, NLS_DEGs05)
+shared_N <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% intersect05, ] %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N) <- N_name
+
+shared_NLS <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% intersect05, ] %>%
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS) <- NLS_name
+shared_both_lfc <- cbind(shared_N, shared_NLS)
+head(shared_both_lfc)
+
+#1.5
+intersect05_1.5 <- intersect(N_DEGs05_lfc1.5, NLS_DEGs05_lfc1.5)
+shared_N_1.5 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% intersect05_1.5, ] %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_1.5) <- N_name
+
+shared_NLS_1.5 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% intersect05_1.5, ] %>% 
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_1.5) <- NLS_name
+shared_both_lfc_1.5 <- cbind(shared_N_1.5, shared_NLS_1.5)
+head(shared_both_lfc_1.5)
+
+#2
+intersect05_2 <- intersect(N_DEGs05_lfc2, NLS_DEGs05_lfc2)
+shared_N_2 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% intersect05_2, ] %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_2) <- N_name
+
+shared_NLS_2 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% intersect05_2, ] %>%
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_2) <- NLS_name
+shared_both_lfc_2 <- cbind(shared_N_2, shared_NLS_2)
+head(shared_both_lfc_2)
+
+##########
+#no lfc filter
+intersect05_new <- intersect(N_DEGs05_new, NLS_DEGs05_new)
+shared_N_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% intersect05_new, ] %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_new) <- N_name
+
+shared_NLS_new <- as.data.frame(res_NLS_Flag_new)[rownames(res_NLS_Flag_new) %in% intersect05_new, ] %>%
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_new) <- NLS_name
+shared_both_lfc_new <- cbind(shared_N_new, shared_NLS_new)
+head(shared_both_lfc_new)
+
+#1.5
+intersect05_1.5_new <- intersect(N_DEGs05_lfc1.5_new, NLS_DEGs05_lfc1.5_new)
+shared_N_1.5_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% intersect05_1.5_new, ] %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_1.5_new) <- N_name
+
+shared_NLS_1.5_new <- as.data.frame(res_NLS_Flag_new)[rownames(res_NLS_Flag_new) %in% intersect05_1.5_new, ] %>% 
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_1.5_new) <- NLS_name
+shared_both_lfc_1.5_new <- cbind(shared_N_1.5_new, shared_NLS_1.5_new)
+head(shared_both_lfc_1.5_new)
+
+#2
+intersect05_2_new <- intersect(N_DEGs05_lfc2_new, NLS_DEGs05_lfc2_new)
+shared_N_2_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% intersect05_2_new, ] %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(shared_N_2_new) <- N_name
+
+shared_NLS_2_new <- as.data.frame(res_NLS_Flag_new)[rownames(res_NLS_Flag_new) %in% intersect05_2_new, ] %>%
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(shared_NLS_2_new) <- NLS_name
+shared_both_lfc_2_new <- cbind(shared_N_2_new, shared_NLS_2_new)
+head(shared_both_lfc_2_new)
+```
+
+get unique degs from each part
+```{r}
+#N_DEGs05_DF <- as.data.frame(N_DEGs05)
+#colnames(N_DEGs05_DF) <- paste("gene_ID")
+
+#no lfc filter
+N_only <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% N_DEGs05, ]
+N_only <- subset(N_only, !rownames(N_only) %in% intersect05) %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(N_only) <- N_name
+head(N_only)
+
+NLS_only <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% NLS_DEGs05, ]
+NLS_only <- subset(NLS_only, !rownames(NLS_only) %in% intersect05) %>%
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(NLS_only) <- NLS_name
+head(NLS_only)
+
+#lfc > 1.5
+N_only_1.5 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% N_DEGs05_lfc1.5, ]
+N_only_1.5 <- subset(N_only_1.5, !rownames(N_only_1.5) %in% intersect05_1.5) %>%
+  dplyr::select(log2FoldChange)
+colnames(N_only_1.5) <- N_name
+head(N_only_1.5)
+
+NLS_only_1.5 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% NLS_DEGs05_lfc1.5, ]
+NLS_only_1.5 <- subset(NLS_only_1.5, !rownames(NLS_only_1.5) %in% intersect05_1.5) %>%
+  dplyr::select(log2FoldChange)
+colnames(NLS_only_1.5) <- NLS_name
+head(NLS_only_1.5)
+
+#lfc > 2
+N_only_2 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% N_DEGs05_lfc2, ]
+N_only_2 <- subset(N_only_2, !rownames(N_only_2) %in% intersect05_2) %>%
+  dplyr::select(log2FoldChange)
+colnames(N_only_2) <- N_name
+head(N_only_2)
+
+NLS_only_2 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% NLS_DEGs05_lfc2, ]
+NLS_only_2 <- subset(NLS_only_2, !rownames(NLS_only_2) %in% intersect05_2) %>%
+  dplyr::select(log2FoldChange)
+colnames(NLS_only_2) <- NLS_name
+head(NLS_only_2)
+
+#########
+#no lfc filter
+N_only_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% N_DEGs05_new, ]
+N_only_new <- subset(N_only_new, !rownames(N_only_new) %in% intersect05_new) %>%
+  dplyr::select(log2FoldChange)
+N_name <- c("N_lfc")
+colnames(N_only_new) <- N_name
+head(N_only_new)
+
+NLS_only_new <- as.data.frame(res_NLS_Flag_new)[rownames(res_NLS_Flag_new) %in% NLS_DEGs05_new, ]
+NLS_only_new <- subset(NLS_only_new, !rownames(NLS_only_new) %in% intersect05_new) %>%
+  dplyr::select(log2FoldChange)
+NLS_name <- c("NLS_lfc")
+colnames(NLS_only_new) <- NLS_name
+head(NLS_only_new)
+
+#lfc > 1.5
+N_only_1.5_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% N_DEGs05_lfc1.5_new, ]
+N_only_1.5_new <- subset(N_only_1.5_new, !rownames(N_only_1.5_new) %in% intersect05_1.5_new) %>%
+  dplyr::select(log2FoldChange)
+colnames(N_only_1.5_new) <- N_name
+head(N_only_1.5_new)
+
+NLS_only_1.5_new <- as.data.frame(res_NLS_Flag_new)[rownames(res_NLS_Flag_new) %in% NLS_DEGs05_lfc1.5_new, ]
+NLS_only_1.5_new <- subset(NLS_only_1.5_new, !rownames(NLS_only_1.5_new) %in% intersect05_1.5_new) %>%
+  dplyr::select(log2FoldChange)
+colnames(NLS_only_1.5_new) <- NLS_name
+head(NLS_only_1.5_new)
+
+#lfc > 2
+N_only_2_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% N_DEGs05_lfc2_new, ]
+N_only_2_new <- subset(N_only_2_new, !rownames(N_only_2_new) %in% intersect05_2_new) %>%
+  dplyr::select(log2FoldChange)
+colnames(N_only_2_new) <- N_name
+head(N_only_2_new)
+
+NLS_only_2_new <- as.data.frame(res_NLS_Flag_new)[rownames(res_NLS_Flag_new) %in% NLS_DEGs05_lfc2_new, ]
+NLS_only_2_new <- subset(NLS_only_2_new, !rownames(NLS_only_2_new) %in% intersect05_2_new) %>%
+  dplyr::select(log2FoldChange)
+colnames(NLS_only_2_new) <- NLS_name
+head(NLS_only_2_new)
+```
+
+
+```{r}
+#change rowname to column
+res_N_Flag_ID = res_N_Flag %>%
+  tibble::rownames_to_column(var = "gene_ID")
+head(res_N_Flag_ID)
+nrow(res_N_Flag_ID)
+
+res_NLS_Flag_ID = res_NLS_Flag %>%
+  tibble::rownames_to_column(var = "gene_ID")
+head(res_NLS_Flag_ID)
+nrow(res_NLS_Flag_ID)
+
+############
+res_N_Flag_ID_new = res_N_Flag_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+head(res_N_Flag_ID_new)
+nrow(res_N_Flag_ID_new)
+#40420
+
+res_NLS_Flag_ID_new = res_NLS_Flag_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+head(res_NLS_Flag_ID_new)
+nrow(res_NLS_Flag_ID_new)
+#40420
+```
+
+make your files into GSEA-ready files
+```{r}
+#all genes
+head(res_N_Flag_ID)
+res_N_Flag_gsea <- res_N_Flag_ID %>%
+  dplyr::select(gene_ID, lfc_NFlag)
+head(res_N_Flag_gsea)
+colnames(res_N_Flag_gsea)=paste(c("ISO","lfc_NFlag"))
+head(res_N_Flag_gsea)
+#res_N_Flag_gsea <- column_to_rownames(res_N_Flag_gsea, var="DESCRIPTION")
+res_N_Flag_gsea <- res_N_Flag_gsea %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+ # column_to_rownames(var="NAME")
+
+head(res_NLS_Flag_ID)
+res_NLS_Flag_gsea <- res_NLS_Flag_ID %>%
+  dplyr::select(gene_ID, lfc_NLSFlag)
+head(res_NLS_Flag_gsea)
+colnames(res_NLS_Flag_gsea)=paste(c("ISO","lfc_NLSFlag"))
+head(res_NLS_Flag_gsea)
+#res_NLS_Flag_gsea <- column_to_rownames(res_NLS_Flag_gsea, var="DESCRIPTION")
+res_NLS_Flag_gsea <- res_NLS_Flag_gsea %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+###########
+head(res_N_Flag_ID_new)
+res_N_Flag_gsea_new <- res_N_Flag_ID_new %>%
+  dplyr::select(REFSEQ, lfc_NFlag)
+head(res_N_Flag_gsea_new)
+res_N_Flag_gsea_new <- res_N_Flag_gsea_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(res_N_Flag_gsea_new)
+
+head(res_NLS_Flag_ID_new)
+res_NLS_Flag_gsea_new <- res_NLS_Flag_ID_new %>%
+  dplyr::select(REFSEQ, lfc_NLSFlag)
+head(res_NLS_Flag_gsea_new)
+res_NLS_Flag_gsea_new <- res_NLS_Flag_gsea_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(res_NLS_Flag_gsea_new)
+```
+
+Shared genes
+```{r}
+#for the shared DEGs, I think we have to make a file for the N and NLS, even tho they're the same genes, they have different values
+
+#no lfc
+head(shared_N)
+head(shared_NLS)
+
+shared_N_gsea <- shared_N %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(shared_N_gsea)=paste(c("ISO","lfc_NFlag"))
+shared_N_gsea <- shared_N_gsea %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+shared_NLS_gsea <- shared_NLS %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(shared_NLS_gsea)=paste(c("ISO","lfc_NLSFlag"))
+shared_NLS_gsea <- shared_NLS_gsea %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+#lfc of >1.5
+head(shared_N_1.5)
+head(shared_NLS_1.5)
+
+shared_N_gsea_1.5 <- shared_N_1.5 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(shared_N_gsea_1.5)=paste(c("ISO","lfc_NFlag"))
+shared_N_gsea_1.5 <- shared_N_gsea_1.5 %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+shared_NLS_gsea_1.5 <- shared_NLS_1.5 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(shared_NLS_gsea_1.5)=paste(c("ISO","lfc_NLSFlag"))
+shared_NLS_gsea_1.5 <- shared_NLS_gsea_1.5 %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+#lfc of >2
+head(shared_N_2)
+head(shared_NLS_2)
+
+shared_N_gsea_2 <- shared_N_2 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(shared_N_gsea_2)=paste(c("ISO","lfc_NFlag"))
+shared_N_gsea_2 <- shared_N_gsea_2 %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+shared_NLS_gsea_2 <- shared_NLS_2 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(shared_NLS_gsea_2)=paste(c("ISO","lfc_NLSFlag"))
+shared_NLS_gsea_2 <- shared_NLS_gsea_2 %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+########
+#no lfc
+head(shared_N_new)
+head(shared_NLS_new)
+
+shared_N_gsea_new <- shared_N_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+colnames(shared_N_gsea_new)=paste(c("REFSEQ", "lfc_NFlag"))
+shared_N_gsea_new <- shared_N_gsea_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(shared_N_gsea_new)
+
+shared_NLS_gsea_new <- shared_NLS_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+colnames(shared_NLS_gsea_new)=paste(c("REFSEQ", "lfc_NLSFlag"))
+shared_NLS_gsea_new <- shared_NLS_gsea_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(shared_NLS_gsea_new)
+
+#lfc of >1.5
+head(shared_N_1.5_new)
+head(shared_NLS_1.5_new)
+
+shared_N_gsea_1.5_new <- shared_N_1.5_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+colnames(shared_N_gsea_1.5_new)=paste(c("REFSEQ","lfc_NFlag"))
+shared_N_gsea_1.5_new <- shared_N_gsea_1.5_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(shared_N_gsea_1.5_new)
+
+shared_NLS_gsea_1.5_new <- shared_NLS_1.5_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+colnames(shared_NLS_gsea_1.5_new)=paste(c("REFSEQ","lfc_NLSFlag"))
+shared_NLS_gsea_1.5_new <- shared_NLS_gsea_1.5_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(shared_NLS_gsea_1.5_new)
+```
+
+Unique genes
+```{r}
+head(N_only)
+head(NLS_only)
+
+N_only_gsea <- N_only %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(N_only_gsea)=paste(c("ISO","lfc_NFlag"))
+N_only_gsea <- N_only_gsea %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+N_only_gsea_sym <- N_only %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(N_only_gsea_sym)=paste(c("ISO","lfc_NFlag"))
+N_only_gsea_sym <- N_only_gsea_sym %>%
+  left_join(iso2gene_sep) %>%
+  dplyr::select(-ISO)
+
+NLS_only_gsea <- NLS_only %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(NLS_only_gsea)=paste(c("ISO","lfc_NLSFlag"))
+NLS_only_gsea <- NLS_only_gsea %>%
+  left_join(cds_seq2iso) %>%
+  dplyr::select(-ISO)
+
+#lfc of > 1.5
+N_only_1.5_gsea <- N_only_1.5 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(N_only_1.5_gsea)=paste(c("ISO","lfc_NFlag"))
+#N_only_1.5_gsea <- N_only_1.5_gsea %>%
+  #left_join(iso2gene_good) %>%
+  #dplyr::select(-ISO)
+
+NLS_only_1.5_gsea <- NLS_only_1.5 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(NLS_only_1.5_gsea)=paste(c("ISO","lfc_NLSFlag"))
+#NLS_only_1.5_gsea <- NLS_only_1.5_gsea %>%
+  #left_join(iso2gene_good) %>%
+  #dplyr::select(-ISO)
+
+#lfc of > 2
+N_only_2_gsea <- N_only_2 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(N_only_2_gsea)=paste(c("ISO","lfc_NFlag"))
+#N_only_2_gsea <- N_only_2_gsea %>%
+  #left_join(iso2gene_good) %>%
+  #dplyr::select(-ISO)
+
+NLS_only_2_gsea <- NLS_only_2 %>%
+  tibble::rownames_to_column(var = "gene_ID")
+colnames(NLS_only_2_gsea)=paste(c("ISO","lfc_NLSFlag"))
+#NLS_only_2_gsea <- NLS_only_2_gsea %>%
+  #left_join(iso2gene_good) %>%
+  #dplyr::select(-ISO)
+
+#######
+head(N_only_new)
+head(NLS_only_new)
+
+N_only_gsea_new <- N_only_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+colnames(N_only_gsea_new)=paste(c("REFSEQ","lfc_NFlag"))
+N_only_gsea_new <- N_only_gsea_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+head(N_only_gsea_new)
+
+NLS_only_gsea_new <- NLS_only_new %>%
+  tibble::rownames_to_column(var = "REFSEQ")
+colnames(NLS_only_gsea_new)=paste(c("REFSEQ","lfc_NLSFlag"))
+NLS_only_gsea_new <- NLS_only_gsea_new %>%
+  left_join(cds_seq2seq) %>%
+  dplyr::select(-REFSEQ)
+
+```
+
+
+```{r}
+#load packages
+BiocManager::install("clusterProfiler")
+BiocManager::install("pathview")
+BiocManager::install("enrichplot")
+
+library(clusterProfiler)
+
+# SET THE DESIRED ORGANISM HERE
+organism = "org.Hs.eg.db"
+BiocManager::install(organism, character.only = TRUE)
+library(organism, character.only = TRUE)
+
+keytypes(org.Hs.eg.db)
+
+
+# we want the log2 fold change 
+original_gene_list_N <- res_N_Flag_gsea$lfc_NFlag
+original_gene_list_NLS <- res_NLS_Flag_gsea$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N) <- res_N_Flag_gsea$REFSEQ
+
+# omit any NA values 
+gene_list_N<-na.omit(original_gene_list_N)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N = sort(gene_list_N, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N <- gseGO(geneList=gene_list_N, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+require(DOSE)
+#dotplot(gse_N, showCategory=10, split=".sign") + facet_grid(.~.sign)
+
+ridgeplot_N <- ridgeplot(gse_N) + labs(x = "enrichment distribution")
+ridgeplot_N
+#emapplot(gse_N, showCategory = 10)
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS) <- res_NLS_Flag_gsea$REFSEQ
+
+# omit any NA values 
+gene_list_NLS<-na.omit(original_gene_list_NLS)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS = sort(gene_list_NLS, decreasing = TRUE)
+
+gse_NLS <- gseGO(geneList=gene_list_NLS, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "BH")
+
+require(DOSE)
+#dotplot(gse_NLS, showCategory=10, split=".sign") + facet_grid(.~.sign)
+
+ridgeplot(gse_NLS) + labs(x = "enrichment distribution")
+
+##############
+# we want the log2 fold change 
+original_gene_list_N_new <- res_N_Flag_gsea_new$lfc_NFlag
+original_gene_list_NLS_new <- res_NLS_Flag_gsea_new$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N_new) <- res_N_Flag_gsea_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_N_new<-na.omit(original_gene_list_N_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N_new = sort(gene_list_N_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N_new <- gseGO(geneList=gene_list_N_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+#791 gene sets
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS_new) <- res_NLS_Flag_gsea_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_NLS_new<-na.omit(original_gene_list_NLS_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS_new = sort(gene_list_NLS_new, decreasing = TRUE)
+
+gse_NLS_new <- gseGO(geneList=gene_list_NLS_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             verbose = TRUE, 
+             OrgDb = organism, 
+             pAdjustMethod = "BH")
+#919 gene sets
+```
+
+```{r}
+intersect_description <- intersect(gse_N@result$Description, gse_NLS@result$Description)
+
+#######
+intersect_description_new <- intersect(gse_N_new@result$Description, gse_NLS_new@result$Description) #429 shared
+```
+
+GSEA for shared
+```{r}
+# we want the log2 fold change 
+original_gene_list_N_shared <- shared_N_gsea$lfc_NFlag
+original_gene_list_NLS_shared <- shared_NLS_gsea$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N_shared) <- shared_N_gsea$REFSEQ
+
+# omit any NA values 
+gene_list_N_shared<-na.omit(original_gene_list_N_shared)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N_shared = sort(gene_list_N_shared, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N_shared <- gseGO(geneList=gene_list_N_shared, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+require(DOSE)
+
+ridgeplot_N_shared <- ridgeplot(gse_N_shared) + labs(x = "enrichment distribution")
+ridgeplot_N_shared #79 GSEAs
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS_shared) <- shared_NLS_gsea$REFSEQ
+
+# omit any NA values 
+gene_list_NLS_shared<-na.omit(original_gene_list_NLS_shared)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS_shared = sort(gene_list_NLS_shared, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_NLS_shared <- gseGO(geneList=gene_list_NLS_shared, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+#
+
+###########
+# we want the log2 fold change 
+original_gene_list_N_shared_new <- shared_N_gsea_new$lfc_NFlag
+original_gene_list_NLS_shared_new <- shared_NLS_gsea_new$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N_shared_new) <- shared_N_gsea_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_N_shared_new<-na.omit(original_gene_list_N_shared_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N_shared_new = sort(gene_list_N_shared_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N_shared_new <- gseGO(geneList=gene_list_N_shared_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+            # nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+#297 gene sets
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS_shared_new) <- shared_NLS_gsea_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_NLS_shared_new<-na.omit(original_gene_list_NLS_shared_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS_shared_new = sort(gene_list_NLS_shared_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_NLS_shared_new <- gseGO(geneList=gene_list_NLS_shared_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+#291
+
+##lfc filter of 1.5
+# we want the log2 fold change 
+original_gene_list_N_shared_1.5_new <- shared_N_gsea_1.5_new$lfc_NFlag
+original_gene_list_NLS_shared_1.5_new <- shared_NLS_gsea_1.5_new$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N_shared_1.5_new) <- shared_N_gsea_1.5_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_N_shared_1.5_new<-na.omit(original_gene_list_N_shared_1.5_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N_shared_1.5_new = sort(gene_list_N_shared_1.5_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N_shared_1.5_new <- gseGO(geneList=gene_list_N_shared_1.5_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+            # nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+# no enriched gene sets
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS_shared_1.5_new) <- shared_NLS_gsea_1.5_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_NLS_shared_1.5_new<-na.omit(original_gene_list_NLS_shared_1.5_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS_shared_1.5_new = sort(gene_list_NLS_shared_1.5_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_NLS_shared_1.5_new <- gseGO(geneList=gene_list_NLS_shared_1.5_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+#119 Gene sets
+```
+
+GSEA for unique (for the sets without lfc filter)
+```{r}
+# we want the log2 fold change 
+original_gene_list_N_only <- N_only_gsea$lfc_NFlag
+original_gene_list_NLS_only <- NLS_only_gsea$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N_only) <- N_only_gsea$REFSEQ
+
+# omit any NA values 
+gene_list_N_only<-na.omit(original_gene_list_N_only)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N_only = sort(gene_list_N_only, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N_only <- gseGO(geneList=gene_list_N_only, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+require(DOSE)
+
+ridgeplot_N_only <- ridgeplot(gse_N_only) + labs(x = "enrichment distribution")
+ridgeplot_N_only #no gseas
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS_only) <- NLS_only_gsea$NAME
+
+# omit any NA values 
+gene_list_NLS_only<-na.omit(original_gene_list_NLS_only)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS_only = sort(gene_list_NLS_only, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_NLS_only <- gseGO(geneList=gene_list_NLS_only, 
+             ont ="ALL", 
+             keyType = "SYMBOL", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+#no gseas
+
+#############
+# we want the log2 fold change 
+original_gene_list_N_only_new <- N_only_gsea_new$lfc_NFlag
+original_gene_list_NLS_only_new <- NLS_only_gsea_new$lfc_NLSFlag
+
+##for N to flag
+# name the vector
+names(original_gene_list_N_only_new) <- N_only_gsea_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_N_only_new<-na.omit(original_gene_list_N_only_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_N_only_new = sort(gene_list_N_only_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_N_only_new <- gseGO(geneList=gene_list_N_only_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+
+#none
+
+##for NLS to flag
+# name the vector
+names(original_gene_list_NLS_only_new) <- NLS_only_gsea_new$REFSEQ_new
+
+# omit any NA values 
+gene_list_NLS_only_new<-na.omit(original_gene_list_NLS_only_new)
+
+# sort the list in decreasing order (required for clusterProfiler)
+gene_list_NLS_only_new = sort(gene_list_NLS_only_new, decreasing = TRUE)
+
+#use bonferonni corrected
+gse_NLS_only_new <- gseGO(geneList=gene_list_NLS_only_new, 
+             ont ="ALL", 
+             keyType = "REFSEQ", 
+             #nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             pAdjustMethod = "BH",
+             verbose = TRUE, 
+             OrgDb = organism)
+#15 gseas
+```
+
+
+
+Fishers of the shared and unique DEGs
+```{r}
+### Start with the shared DEGs (only doing BP)
+# BP
+input="shared_fisher_GO.csv"
+goAnnotations="GRCh38_iso2go.tab"
+goDatabase="go.obo"
+goDivision="BP"
+source("gomwu.functions.R")
+
+gomwuStats(input, goDatabase, goAnnotations, goDivision,
+           perlPath="perl",
+           largest=0.1,
+           smallest=5,
+           clusterCutHeight=0.25)
+# 30 GO terms at 10% FDR
+
+resultsBP=gomwuPlot(input,goAnnotations,goDivision,
+                    absValue=1,
+                    level1=0.1,
+                    level2=0.05,
+                    level3=0.01,
+                    txtsize=1.5,
+                    treeHeight=0.5,
+)
+#saved as shared_fisher_GO_BP as 8x8 portrait
+
+
+#now do the genes unique to N
+input="fishers_N_only_GO.csv"
+goAnnotations="GRCh38_iso2go.tab"
+goDatabase="go.obo"
+goDivision="BP"
+source("gomwu.functions.R")
+
+gomwuStats(input, goDatabase, goAnnotations, goDivision,
+           perlPath="perl",
+           largest=0.1,
+           smallest=5,
+           clusterCutHeight=0.25)
+# 25 GO terms at 10% FDR
+
+resultsBP=gomwuPlot(input,goAnnotations,goDivision,
+                    absValue=1,
+                    level1=0.1,
+                    level2=0.05,
+                    level3=0.01,
+                    txtsize=1.5,
+                    treeHeight=0.5,
+)
+
+#saved as N_only_fisher_GO_BP as 8x7 landscape
+
+#now do the genes unique to NLS
+input="fishers_NLS_only_GO.csv"
+goAnnotations="GRCh38_iso2go.tab"
+goDatabase="go.obo"
+goDivision="BP"
+source("gomwu.functions.R")
+
+gomwuStats(input, goDatabase, goAnnotations, goDivision,
+           perlPath="perl",
+           largest=0.1,
+           smallest=5,
+           clusterCutHeight=0.25)
+# 23 GO terms at 10% FDR
+
+resultsBP=gomwuPlot(input,goAnnotations,goDivision,
+                    absValue=1,
+                    level1=0.1,
+                    level2=0.05,
+                    level3=0.01,
+                    txtsize=1.5,
+                    treeHeight=0.5,
+)
+
+#saved as NLS_only_fisher_GO_BP as 8x7 landscape
+
+```
+
+The functions in the N only and NLS only GO terms are super similar, nothing really standing out that's present in one but not the other
+
+
+

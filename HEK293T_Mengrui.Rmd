@@ -44,7 +44,7 @@ library(tibble)
 
 Set your working directory (the entire path to the folder that contains this rmarkdown and your data files)
 ```{r}
-knitr::opts_knit$set(root.dir = "/Users/mariaingersoll/Desktop/BU_Research/Davies-Gilmore/Mengrui_HEK293T/HEK293T_RNAseq")
+knitr::opts_knit$set(root.dir = "/projectnb/davies-hb/Maria/Mengrui_HEK293T/HEK293T_RNAseq")
 #using the knitr option, it ensures that all chunks run in this rmd are performed in this working directory
 
 #check your working directory:
@@ -354,7 +354,6 @@ write.csv(rldpvals_NLSFlag_new, "./Data_Files/mingers_NLSFlag_RLDandPVALS_24_new
 
 Read back in the csv files you just made to prep for PCA
 ```{r}
-
 rldpvals_NFlag_new <- read.csv(file="./Data_Files/mingers_NFlag_RLDandPVALS_24_new.csv", row.names=1)
 head(rldpvals_NFlag_new)
 rld_NFlag_new <- rldpvals_NFlag_new[,1:6]
