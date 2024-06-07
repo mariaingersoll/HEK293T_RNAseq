@@ -9,7 +9,7 @@ THE GSEA CODE ONLY WORKS WITH R 4.3
 
 
 ```{r}
-setwd("/projectnb/davies-hb/Maria/Mengrui_HEK293T/GO_GSEA_analysis")
+setwd("/projectnb/davies-hb/Maria/Mengrui_HEK293T/HEK293T_RNAseq")
 ```
 
 ```{r}
@@ -54,16 +54,17 @@ library(RColorBrewer)
 read in iso2gene
 NAH
 ```{r}
-iso2gene = read.table("./GRCh38_gene2iso.tab", sep="\t")
+iso2gene = read.table("./Data_Files/GRCh38_gene2iso.tab", sep="\t")
 head(iso2gene)
 
 colnames(iso2gene)=paste(c("DESCRIPTION","NAME"))
+head(iso2gene)
 ```
 
 Read in gtf to make iso2gene
 ```{r}
 #read in gtf to try to get a better iso2gene
-gtf <- read.table("../GRCh38_latest_genomic.gtf", sep="\t")
+gtf <- read.table("/projectnb/davies-hb/Maria/Mengrui_HEK293T/GRCh38_latest_genomic.gtf", sep="\t")
 head(gtf)
 iso2gene_good <- gtf[,c(1,9)]
 head(iso2gene_good)
@@ -83,19 +84,23 @@ iso2gene_good = iso2gene_good %>%
 
 head(iso2gene_good)
 
-seq2iso <-  read.table("../GRCh38_seq2iso_new.tab", sep=" ")
+seq2iso <-  read.table("./Data_Files/GRCh38_seq2iso_new.tab", sep=" ")
 head(seq2iso)
 nrow(seq2iso)
+#185121
 
 iso2gene_sep <- subset(iso2gene_good, ISO %in% seq2iso$V1)
 nrow(iso2gene_sep)
 head(iso2gene_sep)
 
-gff <- read.table("../GRCh38_latest_genomic.gff", sep="\t")
+gff <- read.table("/projectnb/davies-hb/Maria/Mengrui_HEK293T/GRCh38_latest_genomic.gff", sep="\t")
 head(gff)
 length(unique(gff$V1))
+#512
 gff_cds <- subset(gff, V3=="CDS")
 gff_cds
+nrow(gff_cds)
+#1520592
 
 cds_seq2iso_1 <- gff_cds %>%
   mutate(REFSEQ = gsub(".*ID=cds-", "", V9))%>%
@@ -123,36 +128,28 @@ cds_seq2seq <- gff_cds %>%
   distinct()
 
 length(unique(cds_seq2iso$REFSEQ)) 
+#115178
 length(unique(cds_seq2iso$ISO))
+#119520
 
-write.table(cds_seq2iso_1, file="../cds_seq2iso_input.tab", quote=F, sep="\t", row.names = FALSE, col.names = FALSE)
+write.table(cds_seq2iso_1, file="./Data_Files/cds_seq2iso_input.tab", quote=F, sep="\t", row.names = FALSE, col.names = FALSE)
 
-shared_both_col <- as.data.frame(shared_both_col) %>% 
-  left_join(cds_seq2seq)
-shared_both_col <- shared_both_col %>%
-  left_join(cds_seq2iso_1)
-write.csv(shared_both_col, file = "shared_both_col.csv", quote=F, row.names=FALSE)
+#shared_both_col <- as.data.frame(shared_both_col) %>% 
+#  left_join(cds_seq2seq)
+#shared_both_col <- shared_both_col %>%
+#  left_join(cds_seq2iso_1)
+#write.csv(shared_both_col, file = "./Data_Files/shared_both_col.csv", quote=F, row.names=FALSE)
 ```
 
 
 ```{r}
-res_N_Flag<- read.delim("./N_Flag_DE_24.txt")
-head(res_N_Flag)
-res_N_Flag$lfc_NFlag <- res_N_Flag$log2FoldChange
-head(res_N_Flag)
-
-res_NLS_Flag<- read.delim("./NLS_Flag_DE_24.txt")
-head(res_NLS_Flag)
-res_NLS_Flag$lfc_NLSFlag <- res_NLS_Flag$log2FoldChange
-head(res_NLS_Flag)
-
 #########
-res_N_Flag_new<- read.delim("./N_Flag_DE_24_new.txt")
+res_N_Flag_new<- read.delim("./Data_Files/N_Flag_DE_24_new.txt")
 head(res_N_Flag_new)
 res_N_Flag_new$lfc_NFlag <- res_N_Flag_new$log2FoldChange
 head(res_N_Flag_new)
 
-res_NLS_Flag_new<- read.delim("./NLS_Flag_DE_24_new.txt")
+res_NLS_Flag_new<- read.delim("./Data_Files/NLS_Flag_DE_24_new.txt")
 head(res_NLS_Flag_new)
 res_NLS_Flag_new$lfc_NLSFlag <- res_NLS_Flag_new$log2FoldChange
 head(res_NLS_Flag_new)
@@ -162,31 +159,8 @@ head(res_NLS_Flag_new)
 
 Get each of your DEG lists (padj<0.05 no lfc filter, padj<0.05 and lfc>|1.5|, padj<0.05 and |lfc|>2)
 ```{r}
-N_DEGs05=row.names(res_N_Flag[res_N_Flag$padj<0.05 & !is.na(res_N_Flag$padj),])
-length(N_DEGs05)
-# 1379
-#with abs(lfc) of 1.5
-N_DEGs05_lfc1.5=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>1.5 & !is.na(res_N_Flag$padj),])
-length(N_DEGs05_lfc1.5)
-# 506
-#with abs(lfc) of 2
-N_DEGs05_lfc2=row.names(res_N_Flag[res_N_Flag$padj<0.05 & abs(res_N_Flag$log2FoldChange)>2 & !is.na(res_N_Flag$padj),])
-length(N_DEGs05_lfc2)
-#279
-
-NLS_DEGs05=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs05)
-# 1828
-#with abs(lfc) of 1.5
-NLS_DEGs05_lfc1.5=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>1.5 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs05_lfc1.5)
-# 550
-#with abs(lfc) of 2
-NLS_DEGs05_lfc2=row.names(res_NLS_Flag[res_NLS_Flag$padj<0.05 & abs(res_NLS_Flag$log2FoldChange)>2 & !is.na(res_NLS_Flag$padj),])
-length(NLS_DEGs05_lfc2)
-#296
-
 #############
+#this is just a repeat of some code in the main script, but just assuring that everything necessary is here
 N_DEGs05_new=row.names(res_N_Flag_new[res_N_Flag_new$padj<0.05 & !is.na(res_N_Flag_new$padj),])
 length(N_DEGs05_new)
 # 1353
@@ -214,48 +188,6 @@ length(NLS_DEGs05_lfc2_new)
 
 Get shared DEGs from different cutoffs
 ```{r}
-#no lfc filter
-intersect05 <- intersect(N_DEGs05, NLS_DEGs05)
-shared_N <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% intersect05, ] %>%
-  dplyr::select(log2FoldChange)
-N_name <- c("N_lfc")
-colnames(shared_N) <- N_name
-
-shared_NLS <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% intersect05, ] %>%
-  dplyr::select(log2FoldChange)
-NLS_name <- c("NLS_lfc")
-colnames(shared_NLS) <- NLS_name
-shared_both_lfc <- cbind(shared_N, shared_NLS)
-head(shared_both_lfc)
-
-#1.5
-intersect05_1.5 <- intersect(N_DEGs05_lfc1.5, NLS_DEGs05_lfc1.5)
-shared_N_1.5 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% intersect05_1.5, ] %>%
-  dplyr::select(log2FoldChange)
-N_name <- c("N_lfc")
-colnames(shared_N_1.5) <- N_name
-
-shared_NLS_1.5 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% intersect05_1.5, ] %>% 
-  dplyr::select(log2FoldChange)
-NLS_name <- c("NLS_lfc")
-colnames(shared_NLS_1.5) <- NLS_name
-shared_both_lfc_1.5 <- cbind(shared_N_1.5, shared_NLS_1.5)
-head(shared_both_lfc_1.5)
-
-#2
-intersect05_2 <- intersect(N_DEGs05_lfc2, NLS_DEGs05_lfc2)
-shared_N_2 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% intersect05_2, ] %>%
-  dplyr::select(log2FoldChange)
-N_name <- c("N_lfc")
-colnames(shared_N_2) <- N_name
-
-shared_NLS_2 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% intersect05_2, ] %>%
-  dplyr::select(log2FoldChange)
-NLS_name <- c("NLS_lfc")
-colnames(shared_NLS_2) <- NLS_name
-shared_both_lfc_2 <- cbind(shared_N_2, shared_NLS_2)
-head(shared_both_lfc_2)
-
 ##########
 #no lfc filter
 intersect05_new <- intersect(N_DEGs05_new, NLS_DEGs05_new)
@@ -302,50 +234,6 @@ head(shared_both_lfc_2_new)
 
 get unique degs from each part
 ```{r}
-#N_DEGs05_DF <- as.data.frame(N_DEGs05)
-#colnames(N_DEGs05_DF) <- paste("gene_ID")
-
-#no lfc filter
-N_only <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% N_DEGs05, ]
-N_only <- subset(N_only, !rownames(N_only) %in% intersect05) %>%
-  dplyr::select(log2FoldChange)
-N_name <- c("N_lfc")
-colnames(N_only) <- N_name
-head(N_only)
-
-NLS_only <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% NLS_DEGs05, ]
-NLS_only <- subset(NLS_only, !rownames(NLS_only) %in% intersect05) %>%
-  dplyr::select(log2FoldChange)
-NLS_name <- c("NLS_lfc")
-colnames(NLS_only) <- NLS_name
-head(NLS_only)
-
-#lfc > 1.5
-N_only_1.5 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% N_DEGs05_lfc1.5, ]
-N_only_1.5 <- subset(N_only_1.5, !rownames(N_only_1.5) %in% intersect05_1.5) %>%
-  dplyr::select(log2FoldChange)
-colnames(N_only_1.5) <- N_name
-head(N_only_1.5)
-
-NLS_only_1.5 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% NLS_DEGs05_lfc1.5, ]
-NLS_only_1.5 <- subset(NLS_only_1.5, !rownames(NLS_only_1.5) %in% intersect05_1.5) %>%
-  dplyr::select(log2FoldChange)
-colnames(NLS_only_1.5) <- NLS_name
-head(NLS_only_1.5)
-
-#lfc > 2
-N_only_2 <- as.data.frame(res_N_Flag)[rownames(res_N_Flag) %in% N_DEGs05_lfc2, ]
-N_only_2 <- subset(N_only_2, !rownames(N_only_2) %in% intersect05_2) %>%
-  dplyr::select(log2FoldChange)
-colnames(N_only_2) <- N_name
-head(N_only_2)
-
-NLS_only_2 <- as.data.frame(res_NLS_Flag)[rownames(res_NLS_Flag) %in% NLS_DEGs05_lfc2, ]
-NLS_only_2 <- subset(NLS_only_2, !rownames(NLS_only_2) %in% intersect05_2) %>%
-  dplyr::select(log2FoldChange)
-colnames(NLS_only_2) <- NLS_name
-head(NLS_only_2)
-
 #########
 #no lfc filter
 N_only_new <- as.data.frame(res_N_Flag_new)[rownames(res_N_Flag_new) %in% N_DEGs05_new, ]
@@ -391,17 +279,6 @@ head(NLS_only_2_new)
 
 
 ```{r}
-#change rowname to column
-res_N_Flag_ID = res_N_Flag %>%
-  tibble::rownames_to_column(var = "gene_ID")
-head(res_N_Flag_ID)
-nrow(res_N_Flag_ID)
-
-res_NLS_Flag_ID = res_NLS_Flag %>%
-  tibble::rownames_to_column(var = "gene_ID")
-head(res_NLS_Flag_ID)
-nrow(res_NLS_Flag_ID)
-
 ############
 res_N_Flag_ID_new = res_N_Flag_new %>%
   tibble::rownames_to_column(var = "REFSEQ")
@@ -419,29 +296,6 @@ nrow(res_NLS_Flag_ID_new)
 make your files into GSEA-ready files
 ```{r}
 #all genes
-head(res_N_Flag_ID)
-res_N_Flag_gsea <- res_N_Flag_ID %>%
-  dplyr::select(gene_ID, lfc_NFlag)
-head(res_N_Flag_gsea)
-colnames(res_N_Flag_gsea)=paste(c("ISO","lfc_NFlag"))
-head(res_N_Flag_gsea)
-#res_N_Flag_gsea <- column_to_rownames(res_N_Flag_gsea, var="DESCRIPTION")
-res_N_Flag_gsea <- res_N_Flag_gsea %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
- # column_to_rownames(var="NAME")
-
-head(res_NLS_Flag_ID)
-res_NLS_Flag_gsea <- res_NLS_Flag_ID %>%
-  dplyr::select(gene_ID, lfc_NLSFlag)
-head(res_NLS_Flag_gsea)
-colnames(res_NLS_Flag_gsea)=paste(c("ISO","lfc_NLSFlag"))
-head(res_NLS_Flag_gsea)
-#res_NLS_Flag_gsea <- column_to_rownames(res_NLS_Flag_gsea, var="DESCRIPTION")
-res_NLS_Flag_gsea <- res_NLS_Flag_gsea %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
 ###########
 head(res_N_Flag_ID_new)
 res_N_Flag_gsea_new <- res_N_Flag_ID_new %>%
@@ -465,60 +319,6 @@ head(res_NLS_Flag_gsea_new)
 Shared genes
 ```{r}
 #for the shared DEGs, I think we have to make a file for the N and NLS, even tho they're the same genes, they have different values
-
-#no lfc
-head(shared_N)
-head(shared_NLS)
-
-shared_N_gsea <- shared_N %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(shared_N_gsea)=paste(c("ISO","lfc_NFlag"))
-shared_N_gsea <- shared_N_gsea %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-shared_NLS_gsea <- shared_NLS %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(shared_NLS_gsea)=paste(c("ISO","lfc_NLSFlag"))
-shared_NLS_gsea <- shared_NLS_gsea %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-#lfc of >1.5
-head(shared_N_1.5)
-head(shared_NLS_1.5)
-
-shared_N_gsea_1.5 <- shared_N_1.5 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(shared_N_gsea_1.5)=paste(c("ISO","lfc_NFlag"))
-shared_N_gsea_1.5 <- shared_N_gsea_1.5 %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-shared_NLS_gsea_1.5 <- shared_NLS_1.5 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(shared_NLS_gsea_1.5)=paste(c("ISO","lfc_NLSFlag"))
-shared_NLS_gsea_1.5 <- shared_NLS_gsea_1.5 %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-#lfc of >2
-head(shared_N_2)
-head(shared_NLS_2)
-
-shared_N_gsea_2 <- shared_N_2 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(shared_N_gsea_2)=paste(c("ISO","lfc_NFlag"))
-shared_N_gsea_2 <- shared_N_gsea_2 %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-shared_NLS_gsea_2 <- shared_NLS_2 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(shared_NLS_gsea_2)=paste(c("ISO","lfc_NLSFlag"))
-shared_NLS_gsea_2 <- shared_NLS_gsea_2 %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
 
 ########
 #no lfc
@@ -564,60 +364,6 @@ head(shared_NLS_gsea_1.5_new)
 
 Unique genes
 ```{r}
-head(N_only)
-head(NLS_only)
-
-N_only_gsea <- N_only %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(N_only_gsea)=paste(c("ISO","lfc_NFlag"))
-N_only_gsea <- N_only_gsea %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-N_only_gsea_sym <- N_only %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(N_only_gsea_sym)=paste(c("ISO","lfc_NFlag"))
-N_only_gsea_sym <- N_only_gsea_sym %>%
-  left_join(iso2gene_sep) %>%
-  dplyr::select(-ISO)
-
-NLS_only_gsea <- NLS_only %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(NLS_only_gsea)=paste(c("ISO","lfc_NLSFlag"))
-NLS_only_gsea <- NLS_only_gsea %>%
-  left_join(cds_seq2iso) %>%
-  dplyr::select(-ISO)
-
-#lfc of > 1.5
-N_only_1.5_gsea <- N_only_1.5 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(N_only_1.5_gsea)=paste(c("ISO","lfc_NFlag"))
-#N_only_1.5_gsea <- N_only_1.5_gsea %>%
-  #left_join(iso2gene_good) %>%
-  #dplyr::select(-ISO)
-
-NLS_only_1.5_gsea <- NLS_only_1.5 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(NLS_only_1.5_gsea)=paste(c("ISO","lfc_NLSFlag"))
-#NLS_only_1.5_gsea <- NLS_only_1.5_gsea %>%
-  #left_join(iso2gene_good) %>%
-  #dplyr::select(-ISO)
-
-#lfc of > 2
-N_only_2_gsea <- N_only_2 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(N_only_2_gsea)=paste(c("ISO","lfc_NFlag"))
-#N_only_2_gsea <- N_only_2_gsea %>%
-  #left_join(iso2gene_good) %>%
-  #dplyr::select(-ISO)
-
-NLS_only_2_gsea <- NLS_only_2 %>%
-  tibble::rownames_to_column(var = "gene_ID")
-colnames(NLS_only_2_gsea)=paste(c("ISO","lfc_NLSFlag"))
-#NLS_only_2_gsea <- NLS_only_2_gsea %>%
-  #left_join(iso2gene_good) %>%
-  #dplyr::select(-ISO)
-
 #######
 head(N_only_new)
 head(NLS_only_new)
@@ -639,7 +385,7 @@ NLS_only_gsea_new <- NLS_only_gsea_new %>%
 
 ```
 
-
+Run GSEA
 ```{r}
 #load packages
 BiocManager::install("clusterProfiler")
@@ -655,67 +401,6 @@ library(organism, character.only = TRUE)
 
 keytypes(org.Hs.eg.db)
 
-
-# we want the log2 fold change 
-original_gene_list_N <- res_N_Flag_gsea$lfc_NFlag
-original_gene_list_NLS <- res_NLS_Flag_gsea$lfc_NLSFlag
-
-##for N to flag
-# name the vector
-names(original_gene_list_N) <- res_N_Flag_gsea$REFSEQ
-
-# omit any NA values 
-gene_list_N<-na.omit(original_gene_list_N)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list_N = sort(gene_list_N, decreasing = TRUE)
-
-#use bonferonni corrected
-gse_N <- gseGO(geneList=gene_list_N, 
-             ont ="ALL", 
-             keyType = "REFSEQ", 
-             nPerm = 10000, 
-             minGSSize = 3, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             pAdjustMethod = "BH",
-             verbose = TRUE, 
-             OrgDb = organism)
-
-require(DOSE)
-#dotplot(gse_N, showCategory=10, split=".sign") + facet_grid(.~.sign)
-
-ridgeplot_N <- ridgeplot(gse_N) + labs(x = "enrichment distribution")
-ridgeplot_N
-#emapplot(gse_N, showCategory = 10)
-
-##for NLS to flag
-# name the vector
-names(original_gene_list_NLS) <- res_NLS_Flag_gsea$REFSEQ
-
-# omit any NA values 
-gene_list_NLS<-na.omit(original_gene_list_NLS)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list_NLS = sort(gene_list_NLS, decreasing = TRUE)
-
-gse_NLS <- gseGO(geneList=gene_list_NLS, 
-             ont ="ALL", 
-             keyType = "REFSEQ", 
-             nPerm = 10000, 
-             minGSSize = 3, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             verbose = TRUE, 
-             OrgDb = organism, 
-             pAdjustMethod = "BH")
-
-require(DOSE)
-#dotplot(gse_NLS, showCategory=10, split=".sign") + facet_grid(.~.sign)
-
-ridgeplot(gse_NLS) + labs(x = "enrichment distribution")
-
-##############
 # we want the log2 fold change 
 original_gene_list_N_new <- res_N_Flag_gsea_new$lfc_NFlag
 original_gene_list_NLS_new <- res_NLS_Flag_gsea_new$lfc_NLSFlag
@@ -768,69 +453,11 @@ gse_NLS_new <- gseGO(geneList=gene_list_NLS_new,
 ```
 
 ```{r}
-intersect_description <- intersect(gse_N@result$Description, gse_NLS@result$Description)
-
-#######
 intersect_description_new <- intersect(gse_N_new@result$Description, gse_NLS_new@result$Description) #429 shared
 ```
 
 GSEA for shared
 ```{r}
-# we want the log2 fold change 
-original_gene_list_N_shared <- shared_N_gsea$lfc_NFlag
-original_gene_list_NLS_shared <- shared_NLS_gsea$lfc_NLSFlag
-
-##for N to flag
-# name the vector
-names(original_gene_list_N_shared) <- shared_N_gsea$REFSEQ
-
-# omit any NA values 
-gene_list_N_shared<-na.omit(original_gene_list_N_shared)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list_N_shared = sort(gene_list_N_shared, decreasing = TRUE)
-
-#use bonferonni corrected
-gse_N_shared <- gseGO(geneList=gene_list_N_shared, 
-             ont ="ALL", 
-             keyType = "REFSEQ", 
-             nPerm = 10000, 
-             minGSSize = 3, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             pAdjustMethod = "BH",
-             verbose = TRUE, 
-             OrgDb = organism)
-
-require(DOSE)
-
-ridgeplot_N_shared <- ridgeplot(gse_N_shared) + labs(x = "enrichment distribution")
-ridgeplot_N_shared #79 GSEAs
-
-##for NLS to flag
-# name the vector
-names(original_gene_list_NLS_shared) <- shared_NLS_gsea$REFSEQ
-
-# omit any NA values 
-gene_list_NLS_shared<-na.omit(original_gene_list_NLS_shared)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list_NLS_shared = sort(gene_list_NLS_shared, decreasing = TRUE)
-
-#use bonferonni corrected
-gse_NLS_shared <- gseGO(geneList=gene_list_NLS_shared, 
-             ont ="ALL", 
-             keyType = "REFSEQ", 
-             nPerm = 10000, 
-             minGSSize = 3, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             pAdjustMethod = "BH",
-             verbose = TRUE, 
-             OrgDb = organism)
-#
-
-###########
 # we want the log2 fold change 
 original_gene_list_N_shared_new <- shared_N_gsea_new$lfc_NFlag
 original_gene_list_NLS_shared_new <- shared_NLS_gsea_new$lfc_NLSFlag
@@ -938,61 +565,6 @@ gse_NLS_shared_1.5_new <- gseGO(geneList=gene_list_NLS_shared_1.5_new,
 GSEA for unique (for the sets without lfc filter)
 ```{r}
 # we want the log2 fold change 
-original_gene_list_N_only <- N_only_gsea$lfc_NFlag
-original_gene_list_NLS_only <- NLS_only_gsea$lfc_NLSFlag
-
-##for N to flag
-# name the vector
-names(original_gene_list_N_only) <- N_only_gsea$REFSEQ
-
-# omit any NA values 
-gene_list_N_only<-na.omit(original_gene_list_N_only)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list_N_only = sort(gene_list_N_only, decreasing = TRUE)
-
-#use bonferonni corrected
-gse_N_only <- gseGO(geneList=gene_list_N_only, 
-             ont ="ALL", 
-             keyType = "REFSEQ", 
-             nPerm = 10000, 
-             minGSSize = 3, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             pAdjustMethod = "BH",
-             verbose = TRUE, 
-             OrgDb = organism)
-
-require(DOSE)
-
-ridgeplot_N_only <- ridgeplot(gse_N_only) + labs(x = "enrichment distribution")
-ridgeplot_N_only #no gseas
-
-##for NLS to flag
-# name the vector
-names(original_gene_list_NLS_only) <- NLS_only_gsea$NAME
-
-# omit any NA values 
-gene_list_NLS_only<-na.omit(original_gene_list_NLS_only)
-
-# sort the list in decreasing order (required for clusterProfiler)
-gene_list_NLS_only = sort(gene_list_NLS_only, decreasing = TRUE)
-
-#use bonferonni corrected
-gse_NLS_only <- gseGO(geneList=gene_list_NLS_only, 
-             ont ="ALL", 
-             keyType = "SYMBOL", 
-             nPerm = 10000, 
-             minGSSize = 3, 
-             maxGSSize = 800, 
-             pvalueCutoff = 0.05, 
-             pAdjustMethod = "BH",
-             verbose = TRUE, 
-             OrgDb = organism)
-#no gseas
-
-#############
-# we want the log2 fold change 
 original_gene_list_N_only_new <- N_only_gsea_new$lfc_NFlag
 original_gene_list_NLS_only_new <- NLS_only_gsea_new$lfc_NLSFlag
 
@@ -1044,89 +616,108 @@ gse_NLS_only_new <- gseGO(geneList=gene_list_NLS_only_new,
 #15 gseas
 ```
 
+Now preparing the gene lists (of shared and unique DEGs) to go into Enrichr
 
-
-Fishers of the shared and unique DEGs
+get the list of the shared genes (no lfc cutoff) in REFSEQ_new format
 ```{r}
-### Start with the shared DEGs (only doing BP)
-# BP
-input="shared_fisher_GO.csv"
-goAnnotations="GRCh38_iso2go.tab"
-goDatabase="go.obo"
-goDivision="BP"
-source("gomwu.functions.R")
-
-gomwuStats(input, goDatabase, goAnnotations, goDivision,
-           perlPath="perl",
-           largest=0.1,
-           smallest=5,
-           clusterCutHeight=0.25)
-# 30 GO terms at 10% FDR
-
-resultsBP=gomwuPlot(input,goAnnotations,goDivision,
-                    absValue=1,
-                    level1=0.1,
-                    level2=0.05,
-                    level3=0.01,
-                    txtsize=1.5,
-                    treeHeight=0.5,
-)
-#saved as shared_fisher_GO_BP as 8x8 portrait
-
-
-#now do the genes unique to N
-input="fishers_N_only_GO.csv"
-goAnnotations="GRCh38_iso2go.tab"
-goDatabase="go.obo"
-goDivision="BP"
-source("gomwu.functions.R")
-
-gomwuStats(input, goDatabase, goAnnotations, goDivision,
-           perlPath="perl",
-           largest=0.1,
-           smallest=5,
-           clusterCutHeight=0.25)
-# 25 GO terms at 10% FDR
-
-resultsBP=gomwuPlot(input,goAnnotations,goDivision,
-                    absValue=1,
-                    level1=0.1,
-                    level2=0.05,
-                    level3=0.01,
-                    txtsize=1.5,
-                    treeHeight=0.5,
-)
-
-#saved as N_only_fisher_GO_BP as 8x7 landscape
-
-#now do the genes unique to NLS
-input="fishers_NLS_only_GO.csv"
-goAnnotations="GRCh38_iso2go.tab"
-goDatabase="go.obo"
-goDivision="BP"
-source("gomwu.functions.R")
-
-gomwuStats(input, goDatabase, goAnnotations, goDivision,
-           perlPath="perl",
-           largest=0.1,
-           smallest=5,
-           clusterCutHeight=0.25)
-# 23 GO terms at 10% FDR
-
-resultsBP=gomwuPlot(input,goAnnotations,goDivision,
-                    absValue=1,
-                    level1=0.1,
-                    level2=0.05,
-                    level3=0.01,
-                    txtsize=1.5,
-                    treeHeight=0.5,
-)
-
-#saved as NLS_only_fisher_GO_BP as 8x7 landscape
-
+#because we only need the gene names and not the values, we'll just use the shared list from N
+head(shared_N_gsea_new)
+nrow(shared_N_gsea_new)
+#1192
+#left_join it to have the numbers after the decimal point (because we have our genes with decimal points and those without that we used for GSEA)
+sN_new1 <- shared_N_gsea_new %>%
+  left_join(cds_seq2seq)
+head(sN_new1)
+#left_join it to have the "ISO" names
+sN_new1 <- sN_new1 %>%
+  left_join(cds_seq2iso_1)
+head(sN_new1)
+nrow(sN_new1)
+#1249
+#save that as a file
+write.csv(sN_new1, file="./Data_Files/sN_new1.csv", quote=F)
+length(unique(sN_new1$REFSEQ_new))
+#1192
+length(unique(sN_new1$REFSEQ))
+#1249
+length(unique(sN_new1$ISO))
+#1249
 ```
 
-The functions in the N only and NLS only GO terms are super similar, nothing really standing out that's present in one but not the other
+Now do the same with the unique genes (no lfc cutoff)
+```{r}
+#N-only genes (no lfc cutoff)
+head(N_only_gsea_new)
+nrow(N_only_gsea_new)
+#161
+oN_new1 <- N_only_gsea_new %>%
+  left_join(cds_seq2seq)
+head(oN_new1)
+oN_new1 <- oN_new1 %>%
+  left_join(cds_seq2iso_1)
+head(oN_new1)
+nrow(oN_new1)
+#169
+#save that as a file
+write.csv(oN_new1, file="./Data_Files/oN_new1.csv", quote=F)
+length(unique(oN_new1$REFSEQ_new))
+#161
+length(unique(oN_new1$REFSEQ))
+#169
+length(unique(oN_new1$ISO))
+#169
 
+#NLS-only genes (no lfc cutoff)
+head(NLS_only_gsea_new)
+nrow(NLS_only_gsea_new)
+#509
+oNLS_new1 <- NLS_only_gsea_new %>%
+  left_join(cds_seq2seq)
+head(oNLS_new1)
+oNLS_new1 <- oNLS_new1 %>%
+  left_join(cds_seq2iso_1)
+head(oNLS_new1)
+nrow(oNLS_new1)
+#524
+#save that as a file
+write.csv(oNLS_new1, file="./Data_Files/oNLS_new1.csv", quote=F)
+length(unique(oNLS_new1$REFSEQ_new))
+#509
+length(unique(oNLS_new1$REFSEQ))
+#524
+length(unique(oNLS_new1$ISO))
+#524
+```
 
+Do the same for the shared DEGS with 1.5 lfc cutoff
+```{r}
+head(shared_N_gsea_1.5_new)
+nrow(shared_N_gsea_1.5_new)
+#217
+sN_1.5_new1 <- shared_N_gsea_1.5_new %>%
+  left_join(cds_seq2seq)
+head(sN_1.5_new1)
+#left_join it to have the "ISO" names
+sN_1.5_new1 <- sN_1.5_new1 %>%
+  left_join(cds_seq2iso_1)
+head(sN_1.5_new1)
+nrow(sN_1.5_new1)
+#226
+#save that as a file
+write.csv(sN_1.5_new1, file="./Data_Files/sN_1.5_new1.csv", quote=F)
+length(unique(sN_1.5_new1$REFSEQ_new))
+#217
+length(unique(sN_1.5_new1$REFSEQ))
+#226
+length(unique(sN_1.5_new1$ISO))
+#226
+```
 
+In order to run these different groups of DEGs through enrichr, the REFSEQ gene names have to be converted to Entrez gene symbols
+
+I use this portal: https://www.biotools.fr/human/refseq_symbol_converter
+The REFSEQ variety that works best is the one we have labeled "ISO" here 
+The best way to load all the ISOs you want into the portal for Entrez conversion is to open the .csv files that you just generated in excel, then copy the entire column of ISO into the portal
+
+You can then copy the list of Entrez symbols from the portal into Enrichr:
+https://maayanlab.cloud/Enrichr/
