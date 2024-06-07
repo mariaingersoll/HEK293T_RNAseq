@@ -386,6 +386,8 @@ NLS_only_gsea_new <- NLS_only_gsea_new %>%
 ```
 
 Run GSEA
+
+https://learn.gencore.bio.nyu.edu/rna-seq-analysis/gene-set-enrichment-analysis/
 ```{r}
 #load packages
 BiocManager::install("clusterProfiler")
@@ -796,6 +798,13 @@ sN_rel_hm <- pheatmap(as.matrix(explc_sN_rel),
          scale="none",
          legend=T)
 #saved as sN_rel_hm_060624 as 12x5 portrait
+sN_rel_hm_nonames <- pheatmap(as.matrix(explc_sN_rel),
+         color=rev(colorRampPalette(brewer.pal(n=11, name="RdBu"))(20)),
+         cluster_rows = F, show_rownames = F,
+         cluster_cols = T, show_colnames = T, angle_col= "315",
+         breaks=c(seq(from=-1,to=1,by=0.1)),
+         scale="none",
+         legend=T)
 ```
 
 Making bargraph of the terms of interest downloaded from enrichr
