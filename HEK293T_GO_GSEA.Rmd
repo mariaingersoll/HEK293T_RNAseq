@@ -829,6 +829,8 @@ TF_pert_top10 <- TF_pert_top10 %>%
 
 TF_pert_top10$Term <- factor(TF_pert_top10$Term, levels = c("RELA KD GSE1676", "HNF1B OE GSE3308", "TP53 KD GSE1676", "HNF1A OE GSE3308", "DOT1L INHIBITION GSE29828", "NFKB1 INACTIVATION GSE20667.2577", "SOX4 KD GSE4225", "MYB OE GSE2815", "NFKB1 INACTIVATION GSE20667.2576", "MYC KNOCKIN GSE39443"))
 
+TF_pert_top10$Term <- factor(TF_pert_top10$Term, levels = c("MYC KNOCKIN GSE39443", "NFKB1 INACTIVATION GSE20667.2576", "MYB OE GSE2815", "SOX4 KD GSE4225", "NFKB1 INACTIVATION GSE20667.2577", "DOT1L INHIBITION GSE29828", "HNF1A OE GSE3308", "TP53 KD GSE1676", "HNF1B OE GSE3308", "RELA KD GSE1676"))
+
 #make a bargraph
 tf_pert_bar <- ggplot(data=TF_pert_top10, aes(x=Term, y=Combined.Score))+
   geom_bar(position="stack", stat="identity", color="black", alpha=0.6)+
