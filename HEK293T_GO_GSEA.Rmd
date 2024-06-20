@@ -800,12 +800,23 @@ sN_rel_hm <- pheatmap(as.matrix(explc_sN_rel),
 #saved as sN_rel_hm_060624 as 12x5 portrait
 sN_rel_hm_nonames <- pheatmap(as.matrix(explc_sN_rel),
          color=rev(colorRampPalette(brewer.pal(n=11, name="RdBu"))(20)),
-         cluster_rows = T, show_rownames = F,
+         cluster_rows = F, show_rownames = F,
          cluster_cols = T, show_colnames = T, angle_col= "315",
          breaks=c(seq(from=-1,to=1,by=0.1)),
          scale="none",
          legend=T)
 #saved as sN_rel_hm_nonames as 5x4 portrait
+
+row.order <- sN_rel_hm$tree_row$order
+reorder <- explc_sN_rel[row.order,]
+head(reorder)
+
+explc_sNNLS_rel <- rownames_to_column(reorder, var="SYMBOL")
+explc_sNNLS_rel <- explc_sNNLS_rel %>%
+  left_join(sN_NLS_rel_un) %>%
+  right_join(sNLS_new1)
+
+write.csv(explc_sNNLS_rel, file="./Data_Files/explc_sNNLS_rel.csv", quote=F)
 ```
 
 Making bargraph of the terms of interest downloaded from enrichr
@@ -853,5 +864,18 @@ tf_pert_bar_h <- ggplot(data=TF_pert_top10, aes(x=Combined.Score, y=Term))+
 #saved as tf_pert_bar_horizontal as landscape 4x3.5
 ```
 
+saving file of lfc of all shared genes that were input into enrichr
+```{r}
+head(shared_both_lfc_new)
+nrow(shared_both_lfc_new)
+#1192
+shared <- rownames_to_column(shared_both_lfc_new, var="REFSEQ") %>%
+  left_join(cds_seq2iso_1)
+nrow(shared)
+#1192
+head(shared)
+tail(shared)
+write.csv(shared, file="./Data_Files/shared_lfc.csv", quote=F)
+```
 
 
